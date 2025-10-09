@@ -1,16 +1,13 @@
 {
-  "name": "skyassist-platform",
+  "name": "vite-react-typescript-starter",
   "private": true,
-  "version": "1.0.0",
+  "version": "0.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview",
-    "frontend:dev": "cd frontend && npm run dev",
-    "frontend:build": "cd frontend && npm run build",
-    "frontend:install": "cd frontend && npm install"
+    "preview": "vite preview"
   },
   "dependencies": {
     "axios": "^1.12.2",
