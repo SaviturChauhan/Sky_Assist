@@ -100,14 +100,21 @@ const UserTieIcon = ({ className = "" }) => (
 
 // Login Form Component
 const LoginForm = ({ userType, onLogin, onBack }) => {
+  const [isRegistering, setIsRegistering] = useState(false);
   const [formData, setFormData] = useState({
+    name: "",
+    email: "",
     seat: "",
     lastName: "",
     crewId: "",
     password: "",
+    confirmPassword: "",
+    flightNumber: "",
+    department: "",
   });
   const [rememberMe, setRememberMe] = useState(false);
   const [loginError, setLoginError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -115,34 +122,153 @@ const LoginForm = ({ userType, onLogin, onBack }) => {
     setLoginError("");
   };
 
-  const handleLogin = (e) => {
+  // API call to register new user
+  const registerUser = async (userData) => {
+    try {
+      const response = await fetch("http://localhost:3002/api/auth/register", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(userData),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        return { success: true, data: data.data };
+      } else {
+        throw new Error(data.message || "Registration failed");
+      }
+    } catch (error) {
+      console.error("Registration error:", error);
+      throw error;
+    }
+  };
+
+  // API call to login user
+  const loginUser = async (userData) => {
+    try {
+      const response = await fetch("http://localhost:3002/api/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(userData),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        return { success: true, data: data.data };
+      } else {
+        throw new Error(data.message || "Login failed");
+      }
+    } catch (error) {
+      console.error("Login error:", error);
+      throw error;
+    }
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    setIsLoading(true);
+    setLoginError("");
 
-    if (userType === "passenger") {
-      const passenger = demoUsers.passengers.find(
-        (p) =>
-          p.credentials.seat.toLowerCase() === formData.seat.toLowerCase() &&
-          p.credentials.lastName.toLowerCase() ===
-            formData.lastName.toLowerCase()
-      );
+    try {
+      if (isRegistering) {
+        // Registration logic
+        if (formData.password !== formData.confirmPassword) {
+          setLoginError("Passwords do not match");
+          setIsLoading(false);
+          return;
+        }
 
-      if (passenger) {
-        onLogin("passenger", { ...passenger, role: "passenger" });
+        const userData = {
+          name: formData.name,
+          email: formData.email,
+          password: formData.password,
+          role: userType,
+          ...(userType === "passenger" && {
+            seatNumber: formData.seat,
+            flightNumber: formData.flightNumber || "AA123",
+          }),
+          ...(userType === "crew" && {
+            crewId: formData.crewId,
+            department: formData.department,
+          }),
+        };
+
+        const result = await registerUser(userData);
+        if (result.success) {
+          onLogin(userType, result.data.user);
+        }
       } else {
-        setLoginError("Invalid seat number or last name");
-      }
-    } else {
-      const crew = demoUsers.crew.find(
-        (c) =>
-          c.credentials.crewId === formData.crewId &&
-          c.credentials.password === formData.password
-      );
+        // Login logic
+        if (userType === "passenger") {
+          // Try API login first
+          try {
+            const loginData = {
+              email: formData.email,
+              password: formData.password,
+            };
+            const result = await loginUser(loginData);
+            if (result.success) {
+              onLogin("passenger", result.data.user);
+              return;
+            }
+          } catch (apiError) {
+            // Fallback to demo users
+            const passenger = demoUsers.passengers.find(
+              (p) =>
+                p.credentials.seat.toLowerCase() ===
+                  formData.seat.toLowerCase() &&
+                p.credentials.lastName.toLowerCase() ===
+                  formData.lastName.toLowerCase()
+            );
 
-      if (crew) {
-        onLogin("crew", { ...crew, role: "crew" });
-      } else {
-        setLoginError("Invalid crew ID or password");
+            if (passenger) {
+              onLogin("passenger", { ...passenger, role: "passenger" });
+            } else {
+              setLoginError(
+                "Invalid credentials. Try demo users or register new account."
+              );
+            }
+          }
+        } else {
+          // Crew login - try API first, then fallback to demo
+          try {
+            const loginData = {
+              email: formData.email,
+              password: formData.password,
+            };
+            const result = await loginUser(loginData);
+            if (result.success) {
+              onLogin("crew", result.data.user);
+              return;
+            }
+          } catch (apiError) {
+            // Fallback to demo users
+            const crew = demoUsers.crew.find(
+              (c) =>
+                c.credentials.crewId === formData.crewId &&
+                c.credentials.password === formData.password
+            );
+
+            if (crew) {
+              onLogin("crew", { ...crew, role: "crew" });
+            } else {
+              setLoginError(
+                "Invalid credentials. Try demo users or register new account."
+              );
+            }
+          }
+        }
       }
+    } catch (error) {
+      setLoginError(error.message || "An error occurred. Please try again.");
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -153,6 +279,9 @@ const LoginForm = ({ userType, onLogin, onBack }) => {
         lastName: user.credentials.lastName,
         crewId: "",
         password: "",
+        email: "",
+        name: "",
+        department: "",
       });
     } else {
       setFormData({
@@ -160,6 +289,9 @@ const LoginForm = ({ userType, onLogin, onBack }) => {
         lastName: "",
         crewId: user.credentials.crewId,
         password: user.credentials.password,
+        email: "",
+        name: "",
+        department: "",
       });
     }
   };
@@ -210,38 +342,304 @@ const LoginForm = ({ userType, onLogin, onBack }) => {
           </div>
         </div>
 
-        {/* Login Form */}
-        <form onSubmit={handleLogin} className="space-y-4">
-          {userType === "passenger" ? (
+        {/* Toggle between Login and Register */}
+        <div className="flex mb-6 bg-gray-100 rounded-lg p-1">
+          <button
+            onClick={() => setIsRegistering(false)}
+            className={`flex-1 py-2 px-4 text-sm font-medium rounded-md transition-colors ${
+              !isRegistering
+                ? "bg-white text-purple-600 shadow-sm"
+                : "text-gray-600 hover:text-gray-800"
+            }`}
+          >
+            Login
+          </button>
+          <button
+            onClick={() => setIsRegistering(true)}
+            className={`flex-1 py-2 px-4 text-sm font-medium rounded-md transition-colors ${
+              isRegistering
+                ? "bg-white text-purple-600 shadow-sm"
+                : "text-gray-600 hover:text-gray-800"
+            }`}
+          >
+            Register
+          </button>
+        </div>
+
+        {/* Login/Register Form */}
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {isRegistering ? (
+            // Registration fields - conditional based on user type
             <>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Seat Number (e.g., 23A)
+                  Full Name
                 </label>
                 <input
                   type="text"
-                  name="seat"
-                  value={formData.seat}
+                  name="name"
+                  value={formData.name}
                   onChange={handleInputChange}
-                  placeholder="23A"
+                  placeholder="John Doe"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                   required
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Last Name
+                  Email
                 </label>
                 <input
-                  type="text"
-                  name="lastName"
-                  value={formData.lastName}
+                  type="email"
+                  name="email"
+                  value={formData.email}
                   onChange={handleInputChange}
-                  placeholder="Harper"
+                  placeholder="john@example.com"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                   required
                 />
               </div>
+
+              {/* Passenger-specific fields */}
+              {userType === "passenger" && (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Seat Number
+                    </label>
+                    <input
+                      type="text"
+                      name="seat"
+                      value={formData.seat}
+                      onChange={handleInputChange}
+                      placeholder="23A"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Flight Number
+                    </label>
+                    <input
+                      type="text"
+                      name="flightNumber"
+                      value={formData.flightNumber}
+                      onChange={handleInputChange}
+                      placeholder="AA123"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                    />
+                  </div>
+                </>
+              )}
+
+              {/* Crew-specific fields */}
+              {userType === "crew" && (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Crew ID
+                    </label>
+                    <input
+                      type="text"
+                      name="crewId"
+                      value={formData.crewId}
+                      onChange={handleInputChange}
+                      placeholder="FA001"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Department
+                    </label>
+                    <div className="relative">
+                      <select
+                        name="department"
+                        value={formData.department || ""}
+                        onChange={handleInputChange}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 bg-white text-gray-900 appearance-none cursor-pointer hover:border-purple-400 transition-colors pr-10"
+                      >
+                        <option value="" className="text-gray-500">
+                          Select Department
+                        </option>
+                        <option
+                          value="flight-attendant"
+                          className="text-gray-900"
+                        >
+                          Flight Attendant
+                        </option>
+                        <option value="purser" className="text-gray-900">
+                          Purser
+                        </option>
+                        <option
+                          value="senior-attendant"
+                          className="text-gray-900"
+                        >
+                          Senior Attendant
+                        </option>
+                        <option value="supervisor" className="text-gray-900">
+                          Supervisor
+                        </option>
+                      </select>
+                      {/* Custom dropdown arrow */}
+                      <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                        <svg
+                          className="w-5 h-5 text-gray-400"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M19 9l-7 7-7-7"
+                          />
+                        </svg>
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Password
+                </label>
+                <input
+                  type="password"
+                  name="password"
+                  value={formData.password}
+                  onChange={handleInputChange}
+                  placeholder="Password"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Confirm Password
+                </label>
+                <input
+                  type="password"
+                  name="confirmPassword"
+                  value={formData.confirmPassword}
+                  onChange={handleInputChange}
+                  placeholder="Confirm Password"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                  required
+                />
+              </div>
+            </>
+          ) : (
+            // Login fields
+            <>
+              {userType === "passenger" ? (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Email
+                    </label>
+                    <input
+                      type="email"
+                      name="email"
+                      value={formData.email}
+                      onChange={handleInputChange}
+                      placeholder="john@example.com"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Password
+                    </label>
+                    <input
+                      type="password"
+                      name="password"
+                      value={formData.password}
+                      onChange={handleInputChange}
+                      placeholder="Password"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                    />
+                  </div>
+                  <div className="text-center text-sm text-gray-600">
+                    OR use demo credentials below
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Seat Number (Demo)
+                    </label>
+                    <input
+                      type="text"
+                      name="seat"
+                      value={formData.seat}
+                      onChange={handleInputChange}
+                      placeholder="23A"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Last Name (Demo)
+                    </label>
+                    <input
+                      type="text"
+                      name="lastName"
+                      value={formData.lastName}
+                      onChange={handleInputChange}
+                      placeholder="Harper"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                    />
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Email
+                    </label>
+                    <input
+                      type="email"
+                      name="email"
+                      value={formData.email}
+                      onChange={handleInputChange}
+                      placeholder="crew@example.com"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Password
+                    </label>
+                    <input
+                      type="password"
+                      name="password"
+                      value={formData.password}
+                      onChange={handleInputChange}
+                      placeholder="Password"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                    />
+                  </div>
+                  <div className="text-center text-sm text-gray-600">
+                    OR use demo credentials below
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Crew ID (Demo)
+                    </label>
+                    <input
+                      type="text"
+                      name="crewId"
+                      value={formData.crewId}
+                      onChange={handleInputChange}
+                      placeholder="FA001"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                    />
+                  </div>
+                </>
+              )}
               <div className="flex items-center">
                 <input
                   type="checkbox"
@@ -258,37 +656,6 @@ const LoginForm = ({ userType, onLogin, onBack }) => {
                 </label>
               </div>
             </>
-          ) : (
-            <>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Crew ID
-                </label>
-                <input
-                  type="text"
-                  name="crewId"
-                  value={formData.crewId}
-                  onChange={handleInputChange}
-                  placeholder="FA001"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Password
-                </label>
-                <input
-                  type="password"
-                  name="password"
-                  value={formData.password}
-                  onChange={handleInputChange}
-                  placeholder="Password"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                  required
-                />
-              </div>
-            </>
           )}
 
           {loginError && (
@@ -297,9 +664,21 @@ const LoginForm = ({ userType, onLogin, onBack }) => {
 
           <button
             type="submit"
-            className="w-full py-3 px-4 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-bold rounded-lg transition-all duration-300 transform hover:scale-105 shadow-lg"
+            disabled={isLoading}
+            className="w-full py-3 px-4 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-lg transition-all duration-300 transform hover:scale-105 shadow-lg"
           >
-            Log In as {userType === "passenger" ? "Passenger" : "Crew"}
+            {isLoading ? (
+              <div className="flex items-center justify-center">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                {isRegistering ? "Creating Account..." : "Signing In..."}
+              </div>
+            ) : isRegistering ? (
+              `Create ${
+                userType === "passenger" ? "Passenger" : "Crew"
+              } Account`
+            ) : (
+              `Log In as ${userType === "passenger" ? "Passenger" : "Crew"}`
+            )}
           </button>
         </form>
       </div>
@@ -360,6 +739,59 @@ const LoginPage = ({ onLogin }) => {
         }
         .animate-zoom {
           animation: zoom-in-out 30s ease-in-out infinite;
+        }
+        
+        /* Custom dropdown styling */
+        select {
+          -webkit-appearance: none;
+          -moz-appearance: none;
+          appearance: none;
+        }
+        
+        select::-ms-expand {
+          display: none;
+        }
+        
+        /* Custom dropdown arrow */
+        .custom-select {
+          position: relative;
+        }
+        
+        .custom-select::after {
+          content: '';
+          position: absolute;
+          top: 50%;
+          right: 1rem;
+          transform: translateY(-50%);
+          width: 0;
+          height: 0;
+          border-left: 5px solid transparent;
+          border-right: 5px solid transparent;
+          border-top: 5px solid #6b7280;
+          pointer-events: none;
+        }
+        
+        /* Dropdown options styling */
+        select option {
+          background-color: white;
+          color: #374151;
+          padding: 8px 12px;
+        }
+        
+        select option:hover {
+          background-color: #f3f4f6;
+        }
+        
+        select option:checked {
+          background-color: #8b5cf6;
+          color: white;
+        }
+        
+        /* Focus state improvements */
+        select:focus {
+          outline: none;
+          border-color: #8b5cf6;
+          box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
         }
       `}</style>
       <main className="flex flex-col md:flex-row min-h-screen w-full font-sans">
