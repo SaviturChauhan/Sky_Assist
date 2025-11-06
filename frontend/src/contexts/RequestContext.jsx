@@ -29,6 +29,7 @@ export const RequestProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [nextId, setNextId] = useState(1);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Fetch requests from backend on mount
   useEffect(() => {
@@ -144,18 +145,18 @@ export const RequestProvider = ({ children }) => {
     } catch (error) {
       console.error("Error saving request to backend:", error);
       // Fallback: add to local state only if backend save fails
-      const request = {
-        ...newRequest,
-        id: nextId,
-        status: "New",
-        timestamp: new Date().toLocaleTimeString([], {
-          hour: "2-digit",
-          minute: "2-digit",
-        }),
+    const request = {
+      ...newRequest,
+      id: nextId,
+      status: "New",
+      timestamp: new Date().toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
         chat: newRequest.chat || [],
-      };
-      setRequests((prev) => [request, ...prev]);
-      setNextId((prev) => prev + 1);
+    };
+    setRequests((prev) => [request, ...prev]);
+    setNextId((prev) => prev + 1);
       throw error; // Re-throw so caller can handle it
     }
   };
@@ -182,11 +183,11 @@ export const RequestProvider = ({ children }) => {
     } catch (error) {
       console.error("Error updating request status:", error);
       // Fallback: update local state only if backend save fails
-      setRequests((prev) =>
-        prev.map((request) =>
-          request.id === id ? { ...request, status } : request
-        )
-      );
+    setRequests((prev) =>
+      prev.map((request) =>
+        request.id === id ? { ...request, status } : request
+      )
+    );
       throw error;
     }
   };
@@ -226,27 +227,34 @@ export const RequestProvider = ({ children }) => {
     } catch (error) {
       console.error("Error adding chat message:", error);
       // Fallback: add to local state only if backend save fails
-      const timestamp = new Date().toLocaleTimeString([], {
-        hour: "2-digit",
-        minute: "2-digit",
-      });
-      setRequests((prev) =>
-        prev.map((request) =>
-          request.id === requestId
-            ? {
-                ...request,
+    const timestamp = new Date().toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+    setRequests((prev) =>
+      prev.map((request) =>
+        request.id === requestId
+          ? {
+              ...request,
                 chat: [...(request.chat || []), { sender, message, timestamp }],
-              }
-            : request
-        )
-      );
+            }
+          : request
+      )
+    );
       throw error;
     }
   };
 
   // Refresh requests from backend
   const refreshRequests = async () => {
+    // Prevent concurrent refresh calls
+    if (isRefreshing) {
+      console.log("Refresh already in progress, skipping...");
+      return;
+    }
+
     try {
+      setIsRefreshing(true);
       setLoading(true);
       const response = await requestAPI.getAll();
       
@@ -284,6 +292,7 @@ export const RequestProvider = ({ children }) => {
       setError(err.message);
     } finally {
       setLoading(false);
+      setIsRefreshing(false);
     }
   };
 

@@ -128,8 +128,8 @@ const CreateAnnouncement = ({ onBack, templateName = null, user }) => {
     try {
       // Add announcement to context (now saves to backend)
       await addAnnouncement(newAnnouncement);
-      console.log("Announcement created:", formData);
-      setShowSuccessModal(true);
+    console.log("Announcement created:", formData);
+    setShowSuccessModal(true);
     } catch (error) {
       console.error("Failed to create announcement:", error);
       alert("Failed to save announcement. Please try again.");

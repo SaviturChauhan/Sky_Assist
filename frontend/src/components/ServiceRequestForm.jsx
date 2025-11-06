@@ -220,9 +220,9 @@ const ServiceRequestForm = ({ onBack, user }) => {
     try {
       // Add to requests (now saves to backend)
       await addRequest(newRequest);
-      // Show success modal instead of alert
-      setSubmittedItems(allItems);
-      setShowSuccessModal(true);
+    // Show success modal instead of alert
+    setSubmittedItems(allItems);
+    setShowSuccessModal(true);
     } catch (error) {
       console.error("Failed to save request:", error);
       alert("Failed to save request. Please try again.");

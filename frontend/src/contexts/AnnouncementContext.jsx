@@ -164,13 +164,13 @@ export const AnnouncementProvider = ({ children }) => {
     } catch (error) {
       console.error("Error saving announcement to backend:", error);
       // Fallback: add to local state only if backend save fails
-      const newAnnouncement = {
+    const newAnnouncement = {
         id: Date.now(),
-        timestamp: new Date(),
-        time: "Just now",
-        ...announcementData,
-      };
-      setAnnouncements((prev) => [newAnnouncement, ...prev]);
+      timestamp: new Date(),
+      time: "Just now",
+      ...announcementData,
+    };
+    setAnnouncements((prev) => [newAnnouncement, ...prev]);
       throw error; // Re-throw so caller can handle it
     }
   };

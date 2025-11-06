@@ -66,7 +66,7 @@ const RequestDetails = ({ request, onBack, onUpdateStatus, userRole }) => {
   useEffect(() => {
     const interval = setInterval(() => {
       refreshRequests();
-    }, 3000); // Refresh every 3 seconds to catch status updates quickly
+    }, 10000); // Refresh every 10 seconds (reduced frequency to prevent resource exhaustion)
 
     return () => clearInterval(interval);
   }, [refreshRequests]);
@@ -106,7 +106,10 @@ const RequestDetails = ({ request, onBack, onUpdateStatus, userRole }) => {
       setChatMessage("");
       
       // Refresh requests to get updated data from backend
-      await refreshRequests();
+      // Use a small delay to ensure backend has processed the message
+      setTimeout(() => {
+        refreshRequests();
+      }, 500);
     } catch (error) {
       console.error("Error sending message:", error);
       console.error("Request ID:", request.id);

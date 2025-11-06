@@ -19,10 +19,10 @@ const PassengerRequests = ({ user }) => {
     // Refresh immediately on mount
     refreshRequests();
     
-    // Then refresh every 3 seconds to catch status updates quickly
+    // Then refresh every 10 seconds to catch status updates (reduced frequency to prevent resource exhaustion)
     const interval = setInterval(() => {
       refreshRequests();
-    }, 3000); // Refresh every 3 seconds
+    }, 10000); // Refresh every 10 seconds
 
     return () => clearInterval(interval);
   }, [refreshRequests]);
@@ -45,10 +45,14 @@ const PassengerRequests = ({ user }) => {
       
       console.log("Message sent successfully:", response);
       
-      // Refresh requests to get updated data including the new message
-      await refreshRequests();
-      
+      // Clear message input immediately for better UX
       setNewMessage("");
+      
+      // Refresh requests to get updated data including the new message
+      // Use a small delay to ensure backend has processed the message
+      setTimeout(() => {
+        refreshRequests();
+      }, 500);
     } catch (error) {
       console.error("Error sending message:", error);
       console.error("Request ID:", requestId);

@@ -356,27 +356,27 @@ const CrewDashboard = ({ user, onLogout, onNavigate }) => {
                         // Map backend status to display text
                         const displayText = status === "Resolved" ? "Service Provided" : status;
                         return (
-                          <button
-                            key={status}
-                            onClick={() => setStatusFilter(status)}
-                            className={`px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${
-                              statusFilter === status
-                                ? "bg-indigo-500 text-white shadow-md"
-                                : "bg-white text-gray-600 hover:bg-gray-50 border border-gray-200"
-                            }`}
-                          >
+                        <button
+                          key={status}
+                          onClick={() => setStatusFilter(status)}
+                          className={`px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${
+                            statusFilter === status
+                              ? "bg-indigo-500 text-white shadow-md"
+                              : "bg-white text-gray-600 hover:bg-gray-50 border border-gray-200"
+                          }`}
+                        >
                             {displayText}
-                            {status !== "All" && (
-                              <span className="ml-2 text-xs opacity-75">
-                                (
-                                {
-                                  requests.filter((r) => r.status === status)
-                                    .length
-                                }
-                                )
-                              </span>
-                            )}
-                          </button>
+                          {status !== "All" && (
+                            <span className="ml-2 text-xs opacity-75">
+                              (
+                              {
+                                requests.filter((r) => r.status === status)
+                                  .length
+                              }
+                              )
+                            </span>
+                          )}
+                        </button>
                         );
                       })}
                     </div>

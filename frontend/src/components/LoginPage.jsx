@@ -267,11 +267,11 @@ const LoginForm = ({ userType, onLogin, onBack }) => {
 
           // Try API login if email and password provided
           if (formData.email && formData.password) {
-            try {
-              const loginData = {
-                email: formData.email,
-                password: formData.password,
-              };
+          try {
+            const loginData = {
+              email: formData.email,
+              password: formData.password,
+            };
             const result = await loginUser(loginData);
             if (result.success) {
               // Store token and user data
@@ -282,7 +282,7 @@ const LoginForm = ({ userType, onLogin, onBack }) => {
               onLogin("passenger", result.data.user);
               return;
             }
-            } catch (apiError) {
+          } catch (apiError) {
               setLoginError(apiError.message || "Login failed. Please check your credentials.");
               return;
             }

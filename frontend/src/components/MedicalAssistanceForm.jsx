@@ -26,30 +26,30 @@ const MedicalAssistanceForm = ({ onBack, user }) => {
   const handleSubmit = async () => {
     if (selectedSymptom && selectedSymptom !== "Select symptom...") {
       try {
-        // Create medical assistance request
-        const medicalReport = {
-          symptom: selectedSymptom,
-          painLevel: painLevel,
-          additionalDetails: additionalDetails.trim(),
-        };
+      // Create medical assistance request
+      const medicalReport = {
+        symptom: selectedSymptom,
+        painLevel: painLevel,
+        additionalDetails: additionalDetails.trim(),
+      };
 
-        const newRequest = {
-          title: "Medical Assistance",
-          category: "medical",
-          passengerName: user.name,
+      const newRequest = {
+        title: "Medical Assistance",
+        category: "medical",
+        passengerName: user.name,
           seat: user.seat || user.seatNumber,
-          priority: "Urgent",
-          details: `Symptom: ${selectedSymptom}, Pain Level: ${painLevel}/10${
-            additionalDetails ? `, Details: ${additionalDetails}` : ""
-          }`,
-          items: ["Medical Kit", "First Aid"],
-          medicalReport: medicalReport,
-        };
+        priority: "Urgent",
+        details: `Symptom: ${selectedSymptom}, Pain Level: ${painLevel}/10${
+          additionalDetails ? `, Details: ${additionalDetails}` : ""
+        }`,
+        items: ["Medical Kit", "First Aid"],
+        medicalReport: medicalReport,
+      };
 
         await addRequest(newRequest);
 
-        // Show success modal instead of alert
-        setShowSuccessModal(true);
+      // Show success modal instead of alert
+      setShowSuccessModal(true);
       } catch (error) {
         console.error("Failed to save medical request:", error);
         alert("Failed to save request. Please try again.");
