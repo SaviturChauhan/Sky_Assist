@@ -1,35 +1,62 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useRequests } from "../contexts/RequestContext";
 import { getIconForCategory } from "./icons.jsx";
+import { requestAPI } from "../services/api";
 
 const PassengerRequests = ({ user }) => {
-  const { requests, updateRequest } = useRequests();
+  const { requests, updateRequest, refreshRequests } = useRequests();
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [newMessage, setNewMessage] = useState("");
+  const [isSendingMessage, setIsSendingMessage] = useState(false);
 
   // Filter requests for the current passenger
   const passengerRequests = requests.filter(
     (request) => request.passengerName === user.name
   );
 
-  const handleSendMessage = (requestId) => {
-    if (!newMessage.trim()) return;
+  // Refresh requests periodically to get new messages and status updates
+  useEffect(() => {
+    // Refresh immediately on mount
+    refreshRequests();
+    
+    // Then refresh every 3 seconds to catch status updates quickly
+    const interval = setInterval(() => {
+      refreshRequests();
+    }, 3000); // Refresh every 3 seconds
 
-    const message = {
-      sender: user.name,
-      message: newMessage,
-      timestamp: new Date().toLocaleTimeString("en-US", {
-        hour: "2-digit",
-        minute: "2-digit",
-        second: "2-digit",
-      }),
-    };
+    return () => clearInterval(interval);
+  }, [refreshRequests]);
 
-    updateRequest(requestId, {
-      chat: [...requests.find((r) => r.id === requestId).chat, message],
-    });
+  const handleSendMessage = async (requestId) => {
+    if (!newMessage.trim() || isSendingMessage) return;
 
-    setNewMessage("");
+    try {
+      setIsSendingMessage(true);
+      
+      // Ensure we have a valid request ID
+      if (!requestId) {
+        throw new Error("Request ID is missing");
+      }
+      
+      console.log("Sending message to request:", requestId);
+      
+      // Save message to backend
+      const response = await requestAPI.addMessage(requestId, newMessage.trim());
+      
+      console.log("Message sent successfully:", response);
+      
+      // Refresh requests to get updated data including the new message
+      await refreshRequests();
+      
+      setNewMessage("");
+    } catch (error) {
+      console.error("Error sending message:", error);
+      console.error("Request ID:", requestId);
+      console.error("Error details:", error.message);
+      alert(`Failed to send message: ${error.message}. Please try again.`);
+    } finally {
+      setIsSendingMessage(false);
+    }
   };
 
   const getStatusColor = (status) => {
@@ -45,6 +72,14 @@ const PassengerRequests = ({ user }) => {
       default:
         return "bg-gray-100 text-gray-800 border-gray-200";
     }
+  };
+
+  // Map backend status to display text
+  const getStatusDisplayText = (status) => {
+    if (status === "Resolved") {
+      return "Service Provided";
+    }
+    return status;
   };
 
   const getPriorityColor = (priority, category) => {
@@ -149,7 +184,7 @@ const PassengerRequests = ({ user }) => {
                           request.status
                         )}`}
                       >
-                        {request.status}
+                        {getStatusDisplayText(request.status)}
                       </span>
                     </div>
                   </div>
@@ -241,7 +276,7 @@ const PassengerRequests = ({ user }) => {
                           />
                           <button
                             onClick={() => handleSendMessage(request.id)}
-                            disabled={!newMessage.trim()}
+                            disabled={!newMessage.trim() || isSendingMessage}
                             className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors duration-200 flex items-center gap-1"
                           >
                             <span className="material-symbols-outlined text-base">

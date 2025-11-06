@@ -23,32 +23,37 @@ const MedicalAssistanceForm = ({ onBack, user }) => {
     "Other",
   ];
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (selectedSymptom && selectedSymptom !== "Select symptom...") {
-      // Create medical assistance request
-      const medicalReport = {
-        symptom: selectedSymptom,
-        painLevel: painLevel,
-        additionalDetails: additionalDetails.trim(),
-      };
+      try {
+        // Create medical assistance request
+        const medicalReport = {
+          symptom: selectedSymptom,
+          painLevel: painLevel,
+          additionalDetails: additionalDetails.trim(),
+        };
 
-      const newRequest = {
-        title: "Medical Assistance",
-        category: "medical",
-        passengerName: user.name,
-        seat: user.seat,
-        priority: "Urgent",
-        details: `Symptom: ${selectedSymptom}, Pain Level: ${painLevel}/10${
-          additionalDetails ? `, Details: ${additionalDetails}` : ""
-        }`,
-        items: ["Medical Kit", "First Aid"],
-        medicalReport: medicalReport,
-      };
+        const newRequest = {
+          title: "Medical Assistance",
+          category: "medical",
+          passengerName: user.name,
+          seat: user.seat || user.seatNumber,
+          priority: "Urgent",
+          details: `Symptom: ${selectedSymptom}, Pain Level: ${painLevel}/10${
+            additionalDetails ? `, Details: ${additionalDetails}` : ""
+          }`,
+          items: ["Medical Kit", "First Aid"],
+          medicalReport: medicalReport,
+        };
 
-      addRequest(newRequest);
+        await addRequest(newRequest);
 
-      // Show success modal instead of alert
-      setShowSuccessModal(true);
+        // Show success modal instead of alert
+        setShowSuccessModal(true);
+      } catch (error) {
+        console.error("Failed to save medical request:", error);
+        alert("Failed to save request. Please try again.");
+      }
     } else {
       // Show error modal instead of alert
       setShowErrorModal(true);

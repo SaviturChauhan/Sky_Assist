@@ -17,8 +17,13 @@ const CrewDashboard = ({ user, onLogout, onNavigate }) => {
   const [statusFilter, setStatusFilter] = useState("All");
   const [expandedPassenger, setExpandedPassenger] = useState(null);
 
-  const handleUpdateStatus = (id, status) => {
-    updateRequestStatus(id, status);
+  const handleUpdateStatus = async (id, status) => {
+    try {
+      await updateRequestStatus(id, status);
+    } catch (error) {
+      console.error("Failed to update status:", error);
+      alert(`Failed to update status: ${error.message}. Please try again.`);
+    }
   };
 
   const handleAddChatMessage = (requestId, sender, message) => {
@@ -347,29 +352,33 @@ const CrewDashboard = ({ user, onLogout, onNavigate }) => {
                         "Acknowledged",
                         "In Progress",
                         "Resolved",
-                      ].map((status) => (
-                        <button
-                          key={status}
-                          onClick={() => setStatusFilter(status)}
-                          className={`px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${
-                            statusFilter === status
-                              ? "bg-indigo-500 text-white shadow-md"
-                              : "bg-white text-gray-600 hover:bg-gray-50 border border-gray-200"
-                          }`}
-                        >
-                          {status}
-                          {status !== "All" && (
-                            <span className="ml-2 text-xs opacity-75">
-                              (
-                              {
-                                requests.filter((r) => r.status === status)
-                                  .length
-                              }
-                              )
-                            </span>
-                          )}
-                        </button>
-                      ))}
+                      ].map((status) => {
+                        // Map backend status to display text
+                        const displayText = status === "Resolved" ? "Service Provided" : status;
+                        return (
+                          <button
+                            key={status}
+                            onClick={() => setStatusFilter(status)}
+                            className={`px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${
+                              statusFilter === status
+                                ? "bg-indigo-500 text-white shadow-md"
+                                : "bg-white text-gray-600 hover:bg-gray-50 border border-gray-200"
+                            }`}
+                          >
+                            {displayText}
+                            {status !== "All" && (
+                              <span className="ml-2 text-xs opacity-75">
+                                (
+                                {
+                                  requests.filter((r) => r.status === status)
+                                    .length
+                                }
+                                )
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
 

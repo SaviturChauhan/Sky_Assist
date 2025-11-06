@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState } from "react";
+import React, { createContext, useContext, useState, useEffect } from "react";
+import { announcementAPI } from "../services/api";
 
 const AnnouncementContext = createContext();
 
@@ -12,67 +13,166 @@ export const useAnnouncements = () => {
   return context;
 };
 
-export const AnnouncementProvider = ({ children }) => {
-  const [announcements, setAnnouncements] = useState([
-    {
-      id: 1,
-      type: "priority",
-      icon: "priority_high",
-      category: "PRIORITY",
-      title: "Turbulence Expected",
-      message:
-        "Please fasten your seatbelts and remain seated. We anticipate turbulence for the next 30 minutes.",
-      time: "25m ago",
-      color: "red",
-      timestamp: new Date(Date.now() - 25 * 60 * 1000), // 25 minutes ago
-    },
-    {
-      id: 2,
-      type: "service",
-      icon: "restaurant",
-      category: "Meal Service",
-      title: "Meal Service Starting",
-      message:
-        "Meal service will begin shortly. Please select your meal option from the menu in front of you.",
-      time: "1h ago",
-      color: "purple",
-      timestamp: new Date(Date.now() - 60 * 60 * 1000), // 1 hour ago
-    },
-    {
-      id: 3,
-      type: "info",
-      icon: "info",
-      category: "Arrival Information",
-      title: "Arrival Information",
-      message:
-        "We are expected to arrive in London at 7:00 AM local time. Please ensure all personal belongings are collected.",
-      time: "3h ago",
-      color: "blue",
-      timestamp: new Date(Date.now() - 3 * 60 * 60 * 1000), // 3 hours ago
-    },
-    {
-      id: 4,
-      type: "welcome",
-      icon: "waving_hand",
-      category: "Welcome",
-      title: "Welcome Aboard",
-      message:
-        "Welcome aboard AirLink Flight 345. We hope you have a pleasant journey.",
-      time: "5h ago",
-      color: "purple",
-      timestamp: new Date(Date.now() - 5 * 60 * 60 * 1000), // 5 hours ago
-    },
-  ]);
+// Helper function to map backend type to frontend type
+const mapBackendTypeToFrontend = (backendType) => {
+  const typeMap = {
+    "General": "info",
+    "Safety": "priority",
+    "Service": "service",
+    "Weather": "info",
+    "Delay": "info",
+    "Emergency": "priority",
+  };
+  return typeMap[backendType] || "info";
+};
 
-  const addAnnouncement = (announcementData) => {
-    const newAnnouncement = {
-      id: Date.now(), // Simple ID generation
-      timestamp: new Date(),
-      time: "Just now",
-      ...announcementData,
+// Helper function to map backend type to frontend category
+const mapBackendTypeToCategory = (backendType, priority) => {
+  if (priority === "Urgent" || backendType === "Safety" || backendType === "Emergency") {
+    return "PRIORITY";
+  }
+  if (backendType === "Service") {
+    return "Meal Service";
+  }
+  return "General Information";
+};
+
+// Helper function to calculate relative time
+const getRelativeTime = (timestamp) => {
+  const now = new Date();
+  const diff = now - new Date(timestamp);
+  const minutes = Math.floor(diff / (1000 * 60));
+  const hours = Math.floor(diff / (1000 * 60 * 60));
+  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+
+  if (minutes < 1) {
+    return "Just now";
+  } else if (minutes < 60) {
+    return `${minutes}m ago`;
+  } else if (hours < 24) {
+    return `${hours}h ago`;
+  } else if (days < 7) {
+    return `${days}d ago`;
+  } else {
+    return new Date(timestamp).toLocaleDateString();
+  }
+};
+
+export const AnnouncementProvider = ({ children }) => {
+  const [announcements, setAnnouncements] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // Fetch announcements from backend on mount
+  useEffect(() => {
+    const fetchAnnouncements = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const response = await announcementAPI.getAll();
+        
+        if (response.success && response.data) {
+          // Map backend announcements to frontend format
+          const mappedAnnouncements = response.data.map((announcement) => ({
+            id: announcement._id,
+            timestamp: new Date(announcement.createdAt),
+            time: getRelativeTime(announcement.createdAt),
+            title: announcement.title,
+            message: announcement.message,
+            type: mapBackendTypeToFrontend(announcement.type),
+            icon: announcement.icon || "campaign",
+            category: mapBackendTypeToCategory(announcement.type, announcement.priority),
+            color: announcement.color || "blue",
+            priority: announcement.priority,
+            isUrgent: announcement.priority === "Urgent",
+          }));
+          
+          setAnnouncements(mappedAnnouncements);
+        }
+      } catch (err) {
+        console.error("Error fetching announcements:", err);
+        setError(err.message);
+        // Keep empty array on error, don't show mock data
+      } finally {
+        setLoading(false);
+      }
     };
 
-    setAnnouncements((prev) => [newAnnouncement, ...prev]);
+    fetchAnnouncements();
+  }, []);
+
+  const addAnnouncement = async (announcementData) => {
+    try {
+      // Map frontend announcement data to backend format
+      // Map frontend type to backend type enum
+      const typeMap = {
+        "info": "General",
+        "priority": "Safety",
+        "service": "Service",
+        "welcome": "General",
+      };
+      
+      // Map frontend category to backend type
+      const categoryToType = {
+        "General Information": "General",
+        "In-flight Service": "Service",
+        "Safety": "Safety",
+        "Turbulence": "Safety",
+        "Boarding": "General",
+        "Landing": "General",
+        "PRIORITY": "Safety",
+        "Meal Service": "Service",
+      };
+
+      const backendType = typeMap[announcementData.type] || 
+                          categoryToType[announcementData.category] || 
+                          "General";
+
+      const backendData = {
+        title: announcementData.title || "General Announcement",
+        message: announcementData.message || "",
+        type: backendType,
+        priority: announcementData.isUrgent ? "Urgent" : 
+                  announcementData.priority === "high" ? "High" :
+                  announcementData.priority === "medium" ? "Medium" : "Low",
+        color: announcementData.color || "blue",
+        icon: announcementData.icon || "campaign",
+        targetAudience: "All",
+      };
+
+      // Save to backend
+      const response = await announcementAPI.create(backendData);
+      
+      if (response.success && response.data) {
+        // Map backend response to frontend format
+        const savedAnnouncement = {
+          id: response.data._id || Date.now(),
+          timestamp: new Date(response.data.createdAt || Date.now()),
+          time: "Just now",
+          title: response.data.title,
+          message: response.data.message,
+          type: response.data.type,
+          icon: response.data.icon,
+          category: response.data.category || response.data.type,
+          color: response.data.color,
+        };
+
+        // Update local state - add to beginning
+        setAnnouncements((prev) => [savedAnnouncement, ...prev]);
+        return savedAnnouncement;
+      }
+    } catch (error) {
+      console.error("Error saving announcement to backend:", error);
+      // Fallback: add to local state only if backend save fails
+      const newAnnouncement = {
+        id: Date.now(),
+        timestamp: new Date(),
+        time: "Just now",
+        ...announcementData,
+      };
+      setAnnouncements((prev) => [newAnnouncement, ...prev]);
+      throw error; // Re-throw so caller can handle it
+    }
   };
 
   const updateAnnouncementTime = (id, timeString) => {
@@ -110,11 +210,45 @@ export const AnnouncementProvider = ({ children }) => {
     );
   };
 
+  // Refresh announcements from backend
+  const refreshAnnouncements = async () => {
+    try {
+      setLoading(true);
+      const response = await announcementAPI.getAll();
+      
+      if (response.success && response.data) {
+        const mappedAnnouncements = response.data.map((announcement) => ({
+          id: announcement._id,
+          timestamp: new Date(announcement.createdAt),
+          time: getRelativeTime(announcement.createdAt),
+          title: announcement.title,
+          message: announcement.message,
+          type: mapBackendTypeToFrontend(announcement.type),
+          icon: announcement.icon || "campaign",
+          category: mapBackendTypeToCategory(announcement.type, announcement.priority),
+          color: announcement.color || "blue",
+          priority: announcement.priority,
+          isUrgent: announcement.priority === "Urgent",
+        }));
+        
+        setAnnouncements(mappedAnnouncements);
+      }
+    } catch (err) {
+      console.error("Error refreshing announcements:", err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <AnnouncementContext.Provider
       value={{
         announcements,
+        loading,
+        error,
         addAnnouncement,
+        refreshAnnouncements,
         updateAnnouncementTime,
         updateRelativeTimes,
       }}

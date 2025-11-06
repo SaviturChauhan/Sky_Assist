@@ -11,8 +11,15 @@ import { AnnouncementProvider } from "./contexts/AnnouncementContext";
 
 // Main App Component
 const App = () => {
-  const [page, setPage] = useState("login"); // 'login', 'passenger', 'crew', 'flight-announcements', 'skytalk', 'create-announcement'
-  const [user, setUser] = useState(null);
+  // Check for stored user data on mount
+  const [page, setPage] = useState(() => {
+    const storedUser = localStorage.getItem("user");
+    return storedUser ? (JSON.parse(storedUser).role === "passenger" ? "passenger" : "crew") : "login";
+  });
+  const [user, setUser] = useState(() => {
+    const storedUser = localStorage.getItem("user");
+    return storedUser ? JSON.parse(storedUser) : null;
+  });
   const [selectedTemplate, setSelectedTemplate] = useState(null);
 
   const handleLogin = (userType, userData) => {
@@ -26,6 +33,8 @@ const App = () => {
 
   const handleLogout = () => {
     setUser(null);
+    localStorage.removeItem("authToken");
+    localStorage.removeItem("user");
     setPage("login");
   };
 

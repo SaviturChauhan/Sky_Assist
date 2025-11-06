@@ -122,10 +122,14 @@ const LoginForm = ({ userType, onLogin, onBack }) => {
     setLoginError("");
   };
 
+  // Resolve API base URL from env or fallback
+  const API_BASE = (import.meta && import.meta.env && import.meta.env.VITE_API_URL) ||
+    "http://localhost:5001";
+
   // API call to register new user
   const registerUser = async (userData) => {
     try {
-      const response = await fetch("http://localhost:3002/api/auth/register", {
+      const response = await fetch(`${API_BASE}/api/auth/register`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -133,7 +137,16 @@ const LoginForm = ({ userType, onLogin, onBack }) => {
         body: JSON.stringify(userData),
       });
 
-      const data = await response.json();
+      let data;
+      try {
+        data = await response.json();
+      } catch (parseError) {
+        throw new Error(`Server error: ${response.status} ${response.statusText}`);
+      }
+
+      if (!response.ok) {
+        throw new Error(data.message || `Registration failed: ${response.statusText}`);
+      }
 
       if (data.success) {
         return { success: true, data: data.data };
@@ -142,6 +155,14 @@ const LoginForm = ({ userType, onLogin, onBack }) => {
       }
     } catch (error) {
       console.error("Registration error:", error);
+      // Handle network errors
+      const errorMessage = error.message || error.toString();
+      if (errorMessage.includes("Failed to fetch") || 
+          errorMessage.includes("NetworkError") || 
+          errorMessage.includes("ERR_CONNECTION_REFUSED") ||
+          error.name === "TypeError") {
+        throw new Error("Cannot connect to server. Please ensure the backend server is running on port 5001.");
+      }
       throw error;
     }
   };
@@ -149,7 +170,7 @@ const LoginForm = ({ userType, onLogin, onBack }) => {
   // API call to login user
   const loginUser = async (userData) => {
     try {
-      const response = await fetch("http://localhost:3002/api/auth/login", {
+      const response = await fetch(`${API_BASE}/api/auth/login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -157,7 +178,16 @@ const LoginForm = ({ userType, onLogin, onBack }) => {
         body: JSON.stringify(userData),
       });
 
-      const data = await response.json();
+      let data;
+      try {
+        data = await response.json();
+      } catch (parseError) {
+        throw new Error(`Server error: ${response.status} ${response.statusText}`);
+      }
+
+      if (!response.ok) {
+        throw new Error(data.message || `Login failed: ${response.statusText}`);
+      }
 
       if (data.success) {
         return { success: true, data: data.data };
@@ -166,6 +196,14 @@ const LoginForm = ({ userType, onLogin, onBack }) => {
       }
     } catch (error) {
       console.error("Login error:", error);
+      // Handle network errors
+      const errorMessage = error.message || error.toString();
+      if (errorMessage.includes("Failed to fetch") || 
+          errorMessage.includes("NetworkError") || 
+          errorMessage.includes("ERR_CONNECTION_REFUSED") ||
+          error.name === "TypeError") {
+        throw new Error("Cannot connect to server. Please ensure the backend server is running on port 5001.");
+      }
       throw error;
     }
   };
@@ -201,24 +239,18 @@ const LoginForm = ({ userType, onLogin, onBack }) => {
 
         const result = await registerUser(userData);
         if (result.success) {
+          // Store token and user data
+          if (result.data.token) {
+            localStorage.setItem("authToken", result.data.token);
+            localStorage.setItem("user", JSON.stringify(result.data.user));
+          }
           onLogin(userType, result.data.user);
         }
       } else {
         // Login logic
         if (userType === "passenger") {
-          // Try API login first
-          try {
-            const loginData = {
-              email: formData.email,
-              password: formData.password,
-            };
-            const result = await loginUser(loginData);
-            if (result.success) {
-              onLogin("passenger", result.data.user);
-              return;
-            }
-          } catch (apiError) {
-            // Fallback to demo users
+          // Check if using demo credentials (seat and lastName)
+          if (formData.seat && formData.lastName) {
             const passenger = demoUsers.passengers.find(
               (p) =>
                 p.credentials.seat.toLowerCase() ===
@@ -229,26 +261,41 @@ const LoginForm = ({ userType, onLogin, onBack }) => {
 
             if (passenger) {
               onLogin("passenger", { ...passenger, role: "passenger" });
-            } else {
-              setLoginError(
-                "Invalid credentials. Try demo users or register new account."
-              );
-            }
-          }
-        } else {
-          // Crew login - try API first, then fallback to demo
-          try {
-            const loginData = {
-              email: formData.email,
-              password: formData.password,
-            };
-            const result = await loginUser(loginData);
-            if (result.success) {
-              onLogin("crew", result.data.user);
               return;
             }
-          } catch (apiError) {
-            // Fallback to demo users
+          }
+
+          // Try API login if email and password provided
+          if (formData.email && formData.password) {
+            try {
+              const loginData = {
+                email: formData.email,
+                password: formData.password,
+              };
+            const result = await loginUser(loginData);
+            if (result.success) {
+              // Store token and user data
+              if (result.data.token) {
+                localStorage.setItem("authToken", result.data.token);
+                localStorage.setItem("user", JSON.stringify(result.data.user));
+              }
+              onLogin("passenger", result.data.user);
+              return;
+            }
+            } catch (apiError) {
+              setLoginError(apiError.message || "Login failed. Please check your credentials.");
+              return;
+            }
+          }
+
+          // If neither demo nor API login worked
+          setLoginError(
+            "Please provide either email/password or demo credentials (seat/last name)."
+          );
+        } else {
+          // Crew login
+          // Check if using demo credentials (crewId and password)
+          if (formData.crewId && formData.password) {
             const crew = demoUsers.crew.find(
               (c) =>
                 c.credentials.crewId === formData.crewId &&
@@ -257,12 +304,37 @@ const LoginForm = ({ userType, onLogin, onBack }) => {
 
             if (crew) {
               onLogin("crew", { ...crew, role: "crew" });
-            } else {
-              setLoginError(
-                "Invalid credentials. Try demo users or register new account."
-              );
+              return;
             }
           }
+
+          // Try API login if email and password provided
+          if (formData.email && formData.password) {
+            try {
+              const loginData = {
+                email: formData.email,
+                password: formData.password,
+              };
+            const result = await loginUser(loginData);
+            if (result.success) {
+              // Store token and user data
+              if (result.data.token) {
+                localStorage.setItem("authToken", result.data.token);
+                localStorage.setItem("user", JSON.stringify(result.data.user));
+              }
+              onLogin("crew", result.data.user);
+              return;
+            }
+            } catch (apiError) {
+              setLoginError(apiError.message || "Login failed. Please check your credentials.");
+              return;
+            }
+          }
+
+          // If neither demo nor API login worked
+          setLoginError(
+            "Please provide either email/password or demo credentials (crew ID/password)."
+          );
         }
       }
     } catch (error) {

@@ -137,6 +137,9 @@ const updateRequest = asyncHandler(async (req, res) => {
     throw new Error("Not authorized to update this request");
   }
 
+  // Log the update for debugging
+  console.log(`[UPDATE REQUEST] ID: ${req.params.id}, User: ${req.user.role}, Updates:`, req.body);
+
   // Only allow certain fields to be updated by passengers
   if (req.user.role === "passenger") {
     const allowedUpdates = ["title", "description", "priority", "location"];
@@ -153,12 +156,16 @@ const updateRequest = asyncHandler(async (req, res) => {
       runValidators: true,
     });
   } else {
-    // Crew can update all fields
+    // Crew can update all fields including status
     request = await Request.findByIdAndUpdate(req.params.id, req.body, {
       new: true,
       runValidators: true,
     });
   }
+
+  // Verify the update was saved
+  const updatedRequest = await Request.findById(req.params.id);
+  console.log(`[UPDATE REQUEST] After save - Status: ${updatedRequest.status}`);
 
   const populatedRequest = await Request.findById(request._id)
     .populate("passenger", "name email seatNumber")
@@ -215,7 +222,7 @@ const addMessage = asyncHandler(async (req, res) => {
   // Check authorization
   if (
     req.user.role === "passenger" &&
-    request.passenger.toString() !== req.user.id
+    request.passenger.toString() !== req.user.id.toString()
   ) {
     res.status(403);
     throw new Error("Not authorized to add message to this request");

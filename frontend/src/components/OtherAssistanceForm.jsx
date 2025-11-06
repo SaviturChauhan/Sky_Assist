@@ -41,7 +41,7 @@ const OtherAssistanceForm = ({ onBack, user }) => {
         details: formData.details,
         priority: formData.priority,
         passengerName: user.name,
-        seat: user.seat,
+        seat: user.seat || user.seatNumber,
         timestamp: new Date().toLocaleTimeString("en-US", {
           hour: "2-digit",
           minute: "2-digit",
@@ -60,7 +60,7 @@ const OtherAssistanceForm = ({ onBack, user }) => {
         ],
       };
 
-      addRequest(newRequest);
+      await addRequest(newRequest);
       setShowSuccess(true);
       setFormData({
         title: "",
@@ -74,6 +74,7 @@ const OtherAssistanceForm = ({ onBack, user }) => {
         onBack();
       }, 2000);
     } catch (error) {
+      console.error("Failed to save request:", error);
       setShowError(true);
       setTimeout(() => setShowError(false), 3000);
     } finally {

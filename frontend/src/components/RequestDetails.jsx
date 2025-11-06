@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   ChevronDown,
   AlertTriangle,
@@ -10,9 +10,13 @@ import {
 import { StyledCard, AccentButton, PrimaryButton } from "./ui";
 import StatusBadge from "./StatusBadge";
 import InfoBlock from "./InfoBlock.jsx";
+import { requestAPI } from "../services/api";
+import { useRequests } from "../contexts/RequestContext";
 
 const RequestDetails = ({ request, onBack, onUpdateStatus, userRole }) => {
   const [chatMessage, setChatMessage] = useState("");
+  const [isSendingMessage, setIsSendingMessage] = useState(false);
+  const { refreshRequests } = useRequests();
 
   // Parse passenger notes from details and separate them from items
   const parseRequestDetails = (details) => {
@@ -44,11 +48,72 @@ const RequestDetails = ({ request, onBack, onUpdateStatus, userRole }) => {
 
   const [chatHistory, setChatHistory] = useState(initialChat);
 
-  const handleSendChat = () => {
-    if (chatMessage.trim()) {
+  // Sync chat history when request.chat updates (after refresh)
+  useEffect(() => {
+    const updatedChat = [...(request.chat || [])];
+    if (passengerNotes) {
+      updatedChat.unshift({
+        sender: request.passengerName,
+        message: passengerNotes,
+        timestamp: request.timestamp,
+        isPassengerNote: true,
+      });
+    }
+    setChatHistory(updatedChat);
+  }, [request.chat, request.passengerName, request.timestamp, passengerNotes]);
+
+  // Refresh requests periodically to get new messages and status updates
+  useEffect(() => {
+    const interval = setInterval(() => {
+      refreshRequests();
+    }, 3000); // Refresh every 3 seconds to catch status updates quickly
+
+    return () => clearInterval(interval);
+  }, [refreshRequests]);
+
+  const handleSendChat = async () => {
+    if (!chatMessage.trim() || isSendingMessage) return;
+
+    try {
+      setIsSendingMessage(true);
+      
+      // Ensure we have a valid request ID
+      if (!request.id) {
+        throw new Error("Request ID is missing");
+      }
+      
+      console.log("Sending message to request:", request.id);
+      
+      // Save message to backend
+      const response = await requestAPI.addMessage(request.id, chatMessage.trim());
+      
+      console.log("Message sent successfully:", response);
+      
+      // Add message to local chat history immediately for better UX
       const sender = userRole === "crew" ? "Crew" : request.passengerName;
-      setChatHistory([...chatHistory, { sender, message: chatMessage }]);
+      const timestamp = new Date().toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+      
+      const newMessage = {
+        sender,
+        message: chatMessage.trim(),
+        timestamp,
+      };
+      
+      setChatHistory([...chatHistory, newMessage]);
       setChatMessage("");
+      
+      // Refresh requests to get updated data from backend
+      await refreshRequests();
+    } catch (error) {
+      console.error("Error sending message:", error);
+      console.error("Request ID:", request.id);
+      console.error("Error details:", error.message);
+      alert(`Failed to send message: ${error.message}. Please try again.`);
+    } finally {
+      setIsSendingMessage(false);
     }
   };
 
@@ -120,7 +185,7 @@ const RequestDetails = ({ request, onBack, onUpdateStatus, userRole }) => {
                     onClick={() => onUpdateStatus(request.id, "Resolved")}
                     className="flex items-center justify-center px-4 py-2 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white rounded-lg font-medium transition-colors"
                   >
-                    <CheckCircle className="mr-2 w-4 h-4" /> Mark as Resolved
+                    <CheckCircle className="mr-2 w-4 h-4" /> Service Provided
                   </button>
                 </div>
               </div>
@@ -185,7 +250,8 @@ const RequestDetails = ({ request, onBack, onUpdateStatus, userRole }) => {
                 />
                 <button
                   onClick={handleSendChat}
-                  className="flex items-center justify-center px-4 py-2 bg-gradient-to-r from-indigo-500 to-violet-500 hover:from-indigo-600 hover:to-violet-600 text-white rounded-lg font-medium transition-colors"
+                  disabled={isSendingMessage || !chatMessage.trim()}
+                  className="flex items-center justify-center px-4 py-2 bg-gradient-to-r from-indigo-500 to-violet-500 hover:from-indigo-600 hover:to-violet-600 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors"
                 >
                   <Send className="w-4 h-4" />
                 </button>

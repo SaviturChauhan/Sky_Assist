@@ -21,6 +21,14 @@ const StatusBadge = ({ status }) => {
     Urgent: "emergency",
   };
 
+  // Map backend status to display text
+  const getDisplayText = (status) => {
+    if (status === "Resolved") {
+      return "Service Provided";
+    }
+    return status;
+  };
+
   return (
     <span
       className={`inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg shadow-sm border border-white/20 ${
@@ -30,7 +38,7 @@ const StatusBadge = ({ status }) => {
       <span className="material-symbols-outlined text-sm">
         {statusIcons[status] || "circle"}
       </span>
-      {status}
+      {getDisplayText(status)}
     </span>
   );
 };

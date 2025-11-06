@@ -168,7 +168,7 @@ const ServiceRequestForm = ({ onBack, user }) => {
     }
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     // Get all selected items
     const allItems = [];
     Object.values(selectedItems).forEach((categoryItems) => {
@@ -210,19 +210,23 @@ const ServiceRequestForm = ({ onBack, user }) => {
       title: title,
       category: categoryMap[mainCategory] || "general",
       passengerName: user.name,
-      seat: user.seat,
+      seat: user.seat || user.seatNumber,
       priority: "Medium",
       details: details,
       items: allItems,
       chat: chatMessages, // Include chat messages in the request
     };
 
-    // Add to requests
-    addRequest(newRequest);
-
-    // Show success modal instead of alert
-    setSubmittedItems(allItems);
-    setShowSuccessModal(true);
+    try {
+      // Add to requests (now saves to backend)
+      await addRequest(newRequest);
+      // Show success modal instead of alert
+      setSubmittedItems(allItems);
+      setShowSuccessModal(true);
+    } catch (error) {
+      console.error("Failed to save request:", error);
+      alert("Failed to save request. Please try again.");
+    }
   };
 
   return (
