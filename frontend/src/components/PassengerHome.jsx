@@ -7,6 +7,7 @@ import {
   Heart,
   Bot,
   Bell,
+  Star,
 } from "./icons.jsx";
 // This StyledCard can be used by both FlightInfoCard and your main content.
 import React, { useState, useEffect } from "react";
@@ -316,6 +317,27 @@ const PassengerHome = ({ user, onNavigate }) => (
           description="Make custom requests to crew members"
           onClick={() => onNavigate("other-assistance")}
         />
+      </div>
+    </StyledCard>
+
+    {/* Feedback Section */}
+    <StyledCard className="p-6 shadow-xl border border-slate-200 mt-6">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div>
+          <h3 className="text-xl font-bold text-gray-900 mb-2">
+            Share Your Flight Experience
+          </h3>
+          <p className="text-gray-600">
+            Help us improve by providing feedback about your flight
+          </p>
+        </div>
+        <button
+          onClick={() => onNavigate("feedback")}
+          className="px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg hover:from-indigo-700 hover:to-purple-700 transition-all duration-300 transform hover:scale-105 shadow-lg flex items-center gap-2"
+        >
+          <Star className="w-5 h-5" />
+          <span className="font-semibold">Submit Feedback</span>
+        </button>
       </div>
     </StyledCard>
 

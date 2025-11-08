@@ -5,6 +5,7 @@ import CrewDashboard from "./components/CrewDashboard";
 import FlightAnnouncements from "./components/FlightAnnouncements";
 import SkyTalkDashboard from "./components/SkyTalkDashboard";
 import CreateAnnouncement from "./components/CreateAnnouncement";
+import FeedbackAnalytics from "./components/FeedbackAnalytics";
 import { mockPassenger, mockCrew } from "./lib/utils";
 import { RequestProvider } from "./contexts/RequestContext";
 import { AnnouncementProvider } from "./contexts/AnnouncementContext";
@@ -75,6 +76,13 @@ const App = () => {
             onBack={() => setPage("skytalk")}
             templateName={selectedTemplate}
             user={user}
+          />
+        );
+      case "feedback-analytics":
+        return (
+          <FeedbackAnalytics
+            user={user}
+            onBack={() => setPage("crew")}
           />
         );
       case "login":

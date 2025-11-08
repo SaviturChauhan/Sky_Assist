@@ -13,6 +13,7 @@ const { notFound, errorHandler } = require("./middlewares/errorMiddleware");
 const authRoutes = require("./routes/authRoutes");
 const requestRoutes = require("./routes/requestRoutes");
 const announcementRoutes = require("./routes/announcementRoutes");
+const feedbackRoutes = require("./routes/feedbackRoutes");
 
 // Connect to database
 connectDB();
@@ -81,7 +82,8 @@ app.get("/", (req, res) => {
       health: "/api/health",
       auth: "/api/auth",
       requests: "/api/requests",
-      announcements: "/api/announcements"
+      announcements: "/api/announcements",
+      feedback: "/api/feedback"
     },
     documentation: "Visit /api/health for server status"
   });
@@ -91,6 +93,7 @@ app.get("/", (req, res) => {
 app.use("/api/auth", authRoutes);
 app.use("/api/requests", requestRoutes);
 app.use("/api/announcements", announcementRoutes);
+app.use("/api/feedback", feedbackRoutes);
 
 // 404 handler
 app.use(notFound);

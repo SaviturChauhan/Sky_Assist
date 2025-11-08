@@ -4,10 +4,11 @@ import MedicalAssistanceForm from "./MedicalAssistanceForm";
 import AIConcierge from "./AIConcierge";
 import OtherAssistanceForm from "./OtherAssistanceForm";
 import PassengerHome from "./PassengerHome";
+import FeedbackForm from "./FeedbackForm";
 import Header from "./Header";
 
 const PassengerDashboard = ({ user, onLogout, onNavigate }) => {
-  const [activeView, setActiveView] = useState("home"); // 'home', 'request', 'assistance', 'concierge', 'other-assistance'
+  const [activeView, setActiveView] = useState("home"); // 'home', 'request', 'assistance', 'concierge', 'other-assistance', 'feedback'
 
   const renderContent = () => {
     switch (activeView) {
@@ -32,6 +33,17 @@ const PassengerDashboard = ({ user, onLogout, onNavigate }) => {
           <OtherAssistanceForm
             onBack={() => setActiveView("home")}
             user={user}
+          />
+        );
+      case "feedback":
+        return (
+          <FeedbackForm
+            onBack={() => setActiveView("home")}
+            user={user}
+            onSuccess={() => {
+              // Feedback submitted successfully
+              console.log("Feedback submitted successfully");
+            }}
           />
         );
       case "home":

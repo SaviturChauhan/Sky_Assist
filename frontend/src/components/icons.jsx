@@ -56,6 +56,7 @@ import {
   Drumstick as LucideDrumstick,
   Cherry,
   Armchair,
+  Star,
 } from "lucide-react";
 
 // Custom Food Icons (keeping Soup, Ham, and Hamburger as custom since lucide doesn't have them)
@@ -189,4 +190,6 @@ export {
   Cherry,
   // Comfort Icons
   Armchair,
+  // Feedback Icons
+  Star,
 };

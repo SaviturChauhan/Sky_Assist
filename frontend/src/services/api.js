@@ -122,3 +122,30 @@ export const requestAPI = {
   },
 };
 
+// Feedback API calls
+export const feedbackAPI = {
+  getAll: (params = {}) => {
+    const queryParams = new URLSearchParams(params).toString();
+    return apiRequest(`/api/feedback${queryParams ? `?${queryParams}` : ""}`);
+  },
+  getById: (id) => apiRequest(`/api/feedback/${id}`),
+  create: (feedbackData) =>
+    apiRequest("/api/feedback", {
+      method: "POST",
+      body: JSON.stringify(feedbackData),
+    }),
+  update: (id, feedbackData) =>
+    apiRequest(`/api/feedback/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(feedbackData),
+    }),
+  delete: (id) =>
+    apiRequest(`/api/feedback/${id}`, {
+      method: "DELETE",
+    }),
+  getStats: (params = {}) => {
+    const queryParams = new URLSearchParams(params).toString();
+    return apiRequest(`/api/feedback/stats${queryParams ? `?${queryParams}` : ""}`);
+  },
+};
+

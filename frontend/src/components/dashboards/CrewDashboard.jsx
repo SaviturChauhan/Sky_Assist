@@ -128,8 +128,9 @@ const CrewDashboard = ({ user, onLogout, onNavigate }) => {
             </div>
           </div>
 
-          {/* Flight Announcement Component */}
-          <div className="mb-8">
+          {/* Action Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+            {/* Flight Announcement Component */}
             <div
               onClick={() => onNavigate("skytalk")}
               className="group cursor-pointer bg-gradient-to-r from-indigo-500 to-violet-500 rounded-2xl p-8 text-white shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
@@ -147,6 +148,35 @@ const CrewDashboard = ({ user, onLogout, onNavigate }) => {
                     </h3>
                     <p className="text-white/90 text-lg">
                       Create and send flight announcements to passengers
+                    </p>
+                  </div>
+                </div>
+                <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center group-hover:bg-white/30 transition-colors duration-300">
+                  <span className="material-symbols-outlined text-white text-2xl">
+                    arrow_forward
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Feedback Analytics Component */}
+            <div
+              onClick={() => onNavigate("feedback-analytics")}
+              className="group cursor-pointer bg-gradient-to-r from-purple-500 to-pink-500 rounded-2xl p-8 text-white shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-6">
+                  <div className="w-20 h-20 bg-white/20 rounded-2xl flex items-center justify-center group-hover:bg-white/30 transition-colors duration-300">
+                    <span className="material-symbols-outlined text-white text-4xl">
+                      star
+                    </span>
+                  </div>
+                  <div>
+                    <h3 className="text-3xl font-bold mb-2">
+                      Feedback Analytics
+                    </h3>
+                    <p className="text-white/90 text-lg">
+                      View and analyze passenger feedback and ratings
                     </p>
                   </div>
                 </div>
