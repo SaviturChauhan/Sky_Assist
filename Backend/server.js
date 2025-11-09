@@ -51,13 +51,13 @@ app.use(
   })
 );
 
-// Rate limiting - Disabled in development, enabled in production
+// Rate limiting - More lenient to prevent blocking legitimate users
 // Exclude auth routes from global rate limiting (they have their own limiter)
 const limiter = process.env.NODE_ENV === "development" 
   ? (req, res, next) => next() // Skip rate limiting in development
   : rateLimit({
   windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000, // 15 minutes
-  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 200, // Increased to 200 requests per windowMs
+  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 500, // Increased to 500 requests per windowMs
   message: {
     success: false,
     message: "Too many requests from this IP, please try again later.",
@@ -65,10 +65,14 @@ const limiter = process.env.NODE_ENV === "development"
   standardHeaders: true,
   legacyHeaders: false,
   skip: (req) => {
-    // Skip rate limiting for auth routes (they have their own limiter)
-    return req.path.startsWith('/api/auth/register') || 
-           req.path.startsWith('/api/auth/login') ||
-           req.path === '/api/health';
+    // Skip rate limiting for auth routes, health checks, and static files
+    const path = req.path || req.url || '';
+    return path.startsWith('/api/auth/register') || 
+           path.startsWith('/api/auth/login') ||
+           path === '/api/health' ||
+           path === '/' ||
+           path.startsWith('/assets/') ||
+           path.startsWith('/static/');
   },
   skipSuccessfulRequests: false, // Count all requests
 });

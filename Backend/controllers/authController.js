@@ -13,63 +13,83 @@ const generateToken = (id) => {
 // @route   POST /api/auth/register
 // @access  Public
 const registerUser = asyncHandler(async (req, res) => {
-  const { name, email, password, role, seatNumber, flightNumber, crewId, department } = req.body;
+  try {
+    const { name, email, password, role, seatNumber, flightNumber, crewId, department } = req.body;
 
-  // Check if user exists by email
-  const userExists = await User.findOne({ email });
-
-  if (userExists) {
-    res.status(400);
-    throw new Error("User with this email already exists");
-  }
-
-  // Check if crewId already exists (for crew members)
-  if (crewId) {
-    const crewExists = await User.findOne({ crewId });
-    if (crewExists) {
+    // Validate required fields
+    if (!name || !email || !password) {
       res.status(400);
-      throw new Error("Crew ID already exists");
+      throw new Error("Please provide name, email, and password");
     }
-  }
 
-  // Create user
-  const user = await User.create({
-    name,
-    email,
-    password,
-    role: role || "passenger",
-    seatNumber,
-    flightNumber,
-    crewId,
-    department,
-  });
+    console.log("Registration attempt:", { email, name, role });
 
-  if (user) {
-    // Update last login
-    user.lastLogin = new Date();
-    await user.save();
+    // Check if user exists by email
+    const userExists = await User.findOne({ email });
 
-    res.status(201).json({
-      success: true,
-      message: "User registered successfully",
-      data: {
-        user: {
-          id: user._id,
-          name: user.name,
-          email: user.email,
-          role: user.role,
-          seatNumber: user.seatNumber,
-          flightNumber: user.flightNumber,
-          crewId: user.crewId,
-          department: user.department,
-          preferences: user.preferences,
-        },
-        token: generateToken(user._id),
-      },
+    if (userExists) {
+      console.log("User already exists:", email);
+      res.status(400);
+      throw new Error("User with this email already exists");
+    }
+
+    // Check if crewId already exists (for crew members)
+    if (crewId) {
+      const crewExists = await User.findOne({ crewId });
+      if (crewExists) {
+        res.status(400);
+        throw new Error("Crew ID already exists");
+      }
+    }
+
+    // Create user
+    console.log("Creating user in database...");
+    const user = await User.create({
+      name,
+      email,
+      password,
+      role: role || "passenger",
+      seatNumber,
+      flightNumber,
+      crewId,
+      department,
     });
-  } else {
-    res.status(400);
-    throw new Error("Invalid user data");
+
+    console.log("User created successfully:", user._id);
+
+    if (user) {
+      // Update last login
+      user.lastLogin = new Date();
+      await user.save();
+      console.log("User saved with lastLogin:", user._id);
+
+      res.status(201).json({
+        success: true,
+        message: "User registered successfully",
+        data: {
+          user: {
+            id: user._id,
+            name: user.name,
+            email: user.email,
+            role: user.role,
+            seatNumber: user.seatNumber,
+            flightNumber: user.flightNumber,
+            crewId: user.crewId,
+            department: user.department,
+            preferences: user.preferences,
+          },
+          token: generateToken(user._id),
+        },
+      });
+    } else {
+      console.error("User creation failed - user object is null");
+      res.status(400);
+      throw new Error("Invalid user data");
+    }
+  } catch (error) {
+    console.error("Registration error:", error);
+    // Re-throw to be handled by error middleware
+    throw error;
   }
 });
 

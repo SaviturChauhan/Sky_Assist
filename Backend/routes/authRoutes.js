@@ -15,7 +15,7 @@ const router = express.Router();
 // Increased limits to prevent blocking legitimate users
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: process.env.NODE_ENV === "development" ? 100 : 50, // Increased from 10 to 50 in production
+  max: process.env.NODE_ENV === "development" ? 1000 : 100, // Increased to 100 in production (was 50)
   message: {
     success: false,
     message: "Too many authentication attempts from this IP, please try again later.",
@@ -25,7 +25,10 @@ const authLimiter = rateLimit({
   skipSuccessfulRequests: true, // Don't count successful requests - only count failures
   skip: (req) => {
     // Skip rate limiting in development
-    return process.env.NODE_ENV === "development";
+    if (process.env.NODE_ENV === "development") {
+      return true;
+    }
+    return false;
   },
 });
 
