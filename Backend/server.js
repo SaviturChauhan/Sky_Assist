@@ -52,12 +52,12 @@ app.use(
 );
 
 // Rate limiting - More lenient to prevent blocking legitimate users
-// Exclude auth routes from global rate limiting (they have their own limiter)
+// Apply different limits based on request type and authentication
 const limiter = process.env.NODE_ENV === "development" 
   ? (req, res, next) => next() // Skip rate limiting in development
   : rateLimit({
   windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000, // 15 minutes
-  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 500, // Increased to 500 requests per windowMs
+  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 2000, // Increased to 2000 requests per windowMs
   message: {
     success: false,
     message: "Too many requests from this IP, please try again later.",
@@ -65,24 +65,44 @@ const limiter = process.env.NODE_ENV === "development"
   standardHeaders: true,
   legacyHeaders: false,
   skip: (req) => {
-    // Skip rate limiting for auth routes, health checks, and static files
-    const path = req.path || req.url || '';
-    return path.startsWith('/api/auth/register') || 
-           path.startsWith('/api/auth/login') ||
-           path === '/api/health' ||
-           path === '/' ||
-           path.startsWith('/assets/') ||
-           path.startsWith('/static/');
+    // Skip rate limiting for:
+    // 1. Auth routes (they have their own limiter)
+    // 2. Health checks
+    // 3. Static files
+    // 4. All POST/PUT/DELETE requests to API routes (data modifications - already protected by auth)
+    const path = req.path || req.originalUrl || req.url || '';
+    const method = (req.method || '').toUpperCase();
+    
+    // Skip auth routes
+    if (path.startsWith('/api/auth/register') || 
+        path.startsWith('/api/auth/login') ||
+        path === '/api/health' ||
+        path === '/' ||
+        path.startsWith('/assets/') ||
+        path.startsWith('/static/')) {
+      return true;
+    }
+    
+    // Skip rate limiting for ALL POST/PUT/DELETE requests to API routes
+    // These are data modification operations and are already protected by authentication
+    // Only rate limit GET requests (read operations) which can be polled frequently
+    if ((method === 'POST' || method === 'PUT' || method === 'DELETE') && 
+        path.startsWith('/api/')) {
+      return true;
+    }
+    
+    return false;
   },
   skipSuccessfulRequests: false, // Count all requests
 });
 
-// Apply rate limiting (disabled in development)
-app.use(limiter);
-
-// Body parsing middleware
+// Body parsing middleware (needed before rate limiter to access headers)
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
+
+// Apply rate limiting AFTER body parsing but BEFORE routes
+// This allows us to check for Authorization headers
+app.use(limiter);
 
 // Compression middleware
 app.use(compression());

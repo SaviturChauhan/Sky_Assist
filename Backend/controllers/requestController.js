@@ -84,37 +84,64 @@ const getRequest = asyncHandler(async (req, res) => {
 // @route   POST /api/requests
 // @access  Private
 const createRequest = asyncHandler(async (req, res) => {
-  const {
-    title,
-    description,
-    category,
-    priority,
-    seatNumber,
-    flightNumber,
-    location,
-  } = req.body;
+  try {
+    const {
+      title,
+      description,
+      category,
+      priority,
+      seatNumber,
+      flightNumber,
+      location,
+    } = req.body;
 
-  const request = await Request.create({
-    passenger: req.user.id,
-    title,
-    description,
-    category,
-    priority,
-    seatNumber: seatNumber || req.user.seatNumber,
-    flightNumber: flightNumber || req.user.flightNumber,
-    location,
-  });
+    console.log("Creating request:", {
+      userId: req.user.id,
+      userEmail: req.user.email,
+      title,
+      category,
+      priority,
+    });
 
-  const populatedRequest = await Request.findById(request._id).populate(
-    "passenger",
-    "name email seatNumber"
-  );
+    // Validate required fields
+    if (!title || !category) {
+      res.status(400);
+      throw new Error("Title and category are required");
+    }
 
-  res.status(201).json({
-    success: true,
-    message: "Request created successfully",
-    data: populatedRequest,
-  });
+    console.log("Request data validated, creating in database...");
+
+    const request = await Request.create({
+      passenger: req.user.id,
+      title,
+      description,
+      category,
+      priority: priority || "Medium",
+      seatNumber: seatNumber || req.user.seatNumber,
+      flightNumber: flightNumber || req.user.flightNumber,
+      location,
+      status: "New",
+    });
+
+    console.log("Request created successfully:", request._id);
+
+    const populatedRequest = await Request.findById(request._id).populate(
+      "passenger",
+      "name email seatNumber"
+    );
+
+    console.log("Request populated, sending response");
+
+    res.status(201).json({
+      success: true,
+      message: "Request created successfully",
+      data: populatedRequest,
+    });
+  } catch (error) {
+    console.error("Error creating request:", error);
+    console.error("Error stack:", error.stack);
+    throw error;
+  }
 });
 
 // @desc    Update request
