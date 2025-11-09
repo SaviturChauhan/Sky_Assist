@@ -12,16 +12,21 @@ const { protect } = require("../middlewares/authMiddleware");
 const router = express.Router();
 
 // More lenient rate limiter for auth routes
+// Increased limits to prevent blocking legitimate users
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: process.env.NODE_ENV === "development" ? 100 : 10, // Allow more attempts in development
+  max: process.env.NODE_ENV === "development" ? 100 : 50, // Increased from 10 to 50 in production
   message: {
     success: false,
-    message: "Too many login attempts from this IP, please try again later.",
+    message: "Too many authentication attempts from this IP, please try again later.",
   },
   standardHeaders: true,
   legacyHeaders: false,
-  skipSuccessfulRequests: true, // Don't count successful requests
+  skipSuccessfulRequests: true, // Don't count successful requests - only count failures
+  skip: (req) => {
+    // Skip rate limiting in development
+    return process.env.NODE_ENV === "development";
+  },
 });
 
 // Public routes with rate limiting

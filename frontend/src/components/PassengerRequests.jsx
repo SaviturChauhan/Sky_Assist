@@ -19,10 +19,14 @@ const PassengerRequests = ({ user }) => {
     // Refresh immediately on mount
     refreshRequests();
     
-    // Then refresh every 10 seconds to catch status updates (reduced frequency to prevent resource exhaustion)
+    // Refresh every 30 seconds to catch status updates (increased interval to reduce API calls)
+    // Only refresh if page is visible to user
     const interval = setInterval(() => {
-      refreshRequests();
-    }, 10000); // Refresh every 10 seconds
+      // Check if page is visible before refreshing
+      if (!document.hidden) {
+        refreshRequests();
+      }
+    }, 30000); // Refresh every 30 seconds (reduced from 10 seconds)
 
     return () => clearInterval(interval);
   }, [refreshRequests]);

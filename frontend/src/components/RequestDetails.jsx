@@ -64,9 +64,14 @@ const RequestDetails = ({ request, onBack, onUpdateStatus, userRole }) => {
 
   // Refresh requests periodically to get new messages and status updates
   useEffect(() => {
+    // Refresh every 30 seconds to catch status updates (increased interval to reduce API calls)
+    // Only refresh if page is visible to user
     const interval = setInterval(() => {
-      refreshRequests();
-    }, 10000); // Refresh every 10 seconds (reduced frequency to prevent resource exhaustion)
+      // Check if page is visible before refreshing
+      if (!document.hidden) {
+        refreshRequests();
+      }
+    }, 30000); // Refresh every 30 seconds (reduced from 10 seconds)
 
     return () => clearInterval(interval);
   }, [refreshRequests]);
