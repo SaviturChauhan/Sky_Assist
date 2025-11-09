@@ -19,16 +19,40 @@ const PassengerRequests = ({ user }) => {
     // Refresh immediately on mount
     refreshRequests();
     
-    // Refresh every 30 seconds to catch status updates (increased interval to reduce API calls)
+    // Refresh every 60 seconds to catch status updates (increased to reduce API calls)
     // Only refresh if page is visible to user
-    const interval = setInterval(() => {
-      // Check if page is visible before refreshing
-      if (!document.hidden) {
-        refreshRequests();
+    let intervalId = null;
+    
+    const startPolling = () => {
+      if (intervalId) clearInterval(intervalId);
+      
+      intervalId = setInterval(() => {
+        // Check if page is visible before refreshing
+        if (!document.hidden) {
+          refreshRequests();
+        }
+      }, 60000); // Refresh every 60 seconds (reduced from 30 seconds)
+    };
+    
+    // Start polling
+    startPolling();
+    
+    // Pause polling when page is hidden, resume when visible
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        if (intervalId) clearInterval(intervalId);
+        intervalId = null;
+      } else {
+        startPolling();
       }
-    }, 30000); // Refresh every 30 seconds (reduced from 10 seconds)
+    };
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
 
-    return () => clearInterval(interval);
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, [refreshRequests]);
 
   const handleSendMessage = async (requestId) => {

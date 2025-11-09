@@ -59,9 +59,36 @@ const getRelativeTime = (timestamp) => {
 };
 
 export const AnnouncementProvider = ({ children }) => {
-  const [announcements, setAnnouncements] = useState([]);
+  // Try to load from localStorage first for instant display
+  const [announcements, setAnnouncements] = useState(() => {
+    try {
+      const saved = localStorage.getItem('skyassist_announcements');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        // Only use cached data if it's less than 5 minutes old
+        if (parsed.timestamp && (Date.now() - parsed.timestamp < 5 * 60 * 1000)) {
+          return parsed.data || [];
+        }
+      }
+    } catch (e) {
+      console.error("Error loading cached announcements:", e);
+    }
+    return [];
+  });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  // Save announcements to localStorage whenever they change
+  useEffect(() => {
+    try {
+      localStorage.setItem('skyassist_announcements', JSON.stringify({
+        data: announcements,
+        timestamp: Date.now()
+      }));
+    } catch (e) {
+      console.error("Error saving announcements to cache:", e);
+    }
+  }, [announcements]);
 
   // Fetch announcements from backend on mount
   useEffect(() => {
@@ -88,11 +115,15 @@ export const AnnouncementProvider = ({ children }) => {
           }));
           
           setAnnouncements(mappedAnnouncements);
+          setError(null); // Clear error on success
         }
       } catch (err) {
         console.error("Error fetching announcements:", err);
-        setError(err.message);
-        // Keep empty array on error, don't show mock data
+        // Only set error if we don't have cached data
+        if (announcements.length === 0) {
+          setError(err.message);
+        }
+        // Don't clear existing announcements on error - keep cached data
       } finally {
         setLoading(false);
       }
@@ -213,7 +244,7 @@ export const AnnouncementProvider = ({ children }) => {
   // Refresh announcements from backend
   const refreshAnnouncements = async () => {
     try {
-      setLoading(true);
+      // Don't set loading to true on refresh - keep current data visible
       const response = await announcementAPI.getAll();
       
       if (response.success && response.data) {
@@ -232,12 +263,15 @@ export const AnnouncementProvider = ({ children }) => {
         }));
         
         setAnnouncements(mappedAnnouncements);
+        setError(null); // Clear error on successful refresh
       }
     } catch (err) {
       console.error("Error refreshing announcements:", err);
-      setError(err.message);
-    } finally {
-      setLoading(false);
+      // Only set error if we don't have cached data
+      if (announcements.length === 0) {
+        setError(err.message);
+      }
+      // Don't clear existing announcements on error - keep cached data
     }
   };
 

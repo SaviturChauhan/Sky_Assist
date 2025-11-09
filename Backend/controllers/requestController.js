@@ -237,38 +237,64 @@ const deleteRequest = asyncHandler(async (req, res) => {
 // @route   POST /api/requests/:id/messages
 // @access  Private
 const addMessage = asyncHandler(async (req, res) => {
-  const { message } = req.body;
+  try {
+    const { message } = req.body;
 
-  const request = await Request.findById(req.params.id);
+    console.log("Adding message to request:", {
+      requestId: req.params.id,
+      userId: req.user.id,
+      userRole: req.user.role,
+      message: message?.substring(0, 50) + "...",
+    });
 
-  if (!request) {
-    res.status(404);
-    throw new Error("Request not found");
+    if (!message || !message.trim()) {
+      res.status(400);
+      throw new Error("Message is required");
+    }
+
+    const request = await Request.findById(req.params.id);
+
+    if (!request) {
+      res.status(404);
+      throw new Error("Request not found");
+    }
+
+    // Check authorization
+    if (
+      req.user.role === "passenger" &&
+      request.passenger.toString() !== req.user.id.toString()
+    ) {
+      res.status(403);
+      throw new Error("Not authorized to add message to this request");
+    }
+
+    const newMessage = {
+      sender: req.user.role,
+      senderId: req.user.id,
+      message: message.trim(),
+      timestamp: new Date(),
+    };
+
+    console.log("Creating message object:", newMessage);
+
+    request.chatMessages.push(newMessage);
+    await request.save();
+
+    console.log("Message saved successfully. Request now has", request.chatMessages.length, "messages");
+
+    // Return the saved message with populated sender info
+    const savedMessage = request.chatMessages[request.chatMessages.length - 1];
+
+    res.json({
+      success: true,
+      message: "Message added successfully",
+      data: savedMessage,
+    });
+  } catch (error) {
+    console.error("Error adding message:", error);
+    console.error("Error stack:", error.stack);
+    throw error;
   }
-
-  // Check authorization
-  if (
-    req.user.role === "passenger" &&
-    request.passenger.toString() !== req.user.id.toString()
-  ) {
-    res.status(403);
-    throw new Error("Not authorized to add message to this request");
-  }
-
-  const newMessage = {
-    sender: req.user.role,
-    senderId: req.user.id,
-    message,
-  };
-
-  request.chatMessages.push(newMessage);
-  await request.save();
-
-  res.json({
-    success: true,
-    message: "Message added successfully",
-    data: newMessage,
-  });
 });
 
 // @desc    Get request statistics
