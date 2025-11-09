@@ -1,37 +1,29 @@
 {
-  "name": "skyassist-platform",
-  "private": true,
+  "name": "skyassist",
   "version": "1.0.0",
-  "type": "module",
+  "description": "SkyAssist - In-Flight Assistance Platform",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "lint": "eslint .",
-    "preview": "vite preview",
-    "frontend:dev": "cd frontend && npm run dev",
-    "frontend:build": "cd frontend && npm run build",
-    "frontend:install": "cd frontend && npm install"
+    "build": "cd frontend && npm install && npm run build",
+    "install-frontend": "cd frontend && npm install",
+    "install-backend": "cd Backend && npm install",
+    "install-all": "npm run install-backend && npm run install-frontend"
   },
   "dependencies": {
-    "axios": "^1.12.2",
-    "dotenv": "^17.2.3",
-    "lucide-react": "^0.344.0",
-    "prop-types": "^15.8.1",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "react-icons": "^5.5.0",
-    "react-markdown": "^10.1.0"
+    "axios": "^1.6.2",
+    "bcryptjs": "^2.4.3",
+    "compression": "^1.7.4",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "express-async-handler": "^1.2.0",
+    "express-rate-limit": "^7.1.5",
+    "helmet": "^7.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "mongodb": "^6.20.0",
+    "mongoose": "^8.0.3",
+    "morgan": "^1.10.0"
   },
-  "devDependencies": {
-    "@eslint/js": "^9.9.1",
-    "@vitejs/plugin-react": "^4.3.1",
-    "autoprefixer": "^10.4.18",
-    "eslint": "^9.9.1",
-    "eslint-plugin-react-hooks": "^5.1.0-rc.0",
-    "eslint-plugin-react-refresh": "^0.4.11",
-    "globals": "^15.9.0",
-    "postcss": "^8.4.35",
-    "tailwindcss": "^3.4.1",
-    "vite": "^5.4.2"
+  "engines": {
+    "node": ">=16.0.0"
   }
 }

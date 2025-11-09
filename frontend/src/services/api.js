@@ -1,6 +1,7 @@
 // API utility functions for making authenticated requests
 
-const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5001";
+// Use relative URL for same-domain deployment (Vercel), or env variable for different domains
+const API_BASE = import.meta.env.VITE_API_URL || (import.meta.env.PROD ? "" : "http://localhost:5000");
 
 // Get auth token from localStorage
 const getToken = () => {
