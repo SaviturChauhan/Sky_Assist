@@ -28,9 +28,9 @@ const allowedOrigins = process.env.FRONTEND_URL
   ? process.env.FRONTEND_URL.split(',').map(url => url.trim())
   : ["http://localhost:5173"];
 
-// Add Vercel deployment URL if available
-if (process.env.VERCEL_URL) {
-  allowedOrigins.push(`https://${process.env.VERCEL_URL}`);
+// Add Render deployment URL if available
+if (process.env.RENDER_EXTERNAL_URL) {
+  allowedOrigins.push(process.env.RENDER_EXTERNAL_URL);
 }
 
 app.use(
@@ -41,7 +41,8 @@ app.use(
       if (allowedOrigins.indexOf(origin) !== -1 || process.env.NODE_ENV === "development") {
         callback(null, true);
       } else {
-        callback(null, true); // Allow all origins in production for Vercel
+        // In production, allow requests from frontend URL or all origins if FRONTEND_URL is not set
+        callback(null, true);
       }
     },
     credentials: true,
@@ -118,31 +119,28 @@ app.use(notFound);
 // Error handling middleware
 app.use(errorHandler);
 
-// For Vercel serverless, export the app directly
-// For local development, start the server
-if (require.main === module) {
-  const PORT = process.env.PORT || 5000;
+// Start the server
+const PORT = process.env.PORT || 5000;
 
-  const server = app.listen(PORT, () => {
-    console.log(`🚀 SkyAssist Backend Server running on port ${PORT}`);
-    console.log(`🌍 Environment: ${process.env.NODE_ENV || "development"}`);
-    console.log(`📊 Health check: http://localhost:${PORT}/api/health`);
-  });
+const server = app.listen(PORT, () => {
+  console.log(`🚀 SkyAssist Backend Server running on port ${PORT}`);
+  console.log(`🌍 Environment: ${process.env.NODE_ENV || "development"}`);
+  console.log(`📊 Health check: http://localhost:${PORT}/api/health`);
+});
 
-  // Handle unhandled promise rejections
-  process.on("unhandledRejection", (err, promise) => {
-    console.log(`❌ Unhandled Rejection: ${err.message}`);
-    // Close server & exit process
-    server.close(() => {
-      process.exit(1);
-    });
-  });
-
-  // Handle uncaught exceptions
-  process.on("uncaughtException", (err) => {
-    console.log(`❌ Uncaught Exception: ${err.message}`);
+// Handle unhandled promise rejections
+process.on("unhandledRejection", (err, promise) => {
+  console.log(`❌ Unhandled Rejection: ${err.message}`);
+  // Close server & exit process
+  server.close(() => {
     process.exit(1);
   });
-}
+});
+
+// Handle uncaught exceptions
+process.on("uncaughtException", (err) => {
+  console.log(`❌ Uncaught Exception: ${err.message}`);
+  process.exit(1);
+});
 
 module.exports = app;

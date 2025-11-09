@@ -1,7 +1,7 @@
 // API utility functions for making authenticated requests
 
-// Use relative URL for same-domain deployment (Vercel), or env variable for different domains
-const API_BASE = import.meta.env.VITE_API_URL || (import.meta.env.PROD ? "" : "http://localhost:5000");
+// Use environment variable for API URL (set in Render), or default to localhost for development
+const API_BASE = import.meta.env.VITE_API_URL || (import.meta.env.PROD ? "https://skyassist-backend.onrender.com" : "http://localhost:5000");
 
 // Get auth token from localStorage
 const getToken = () => {

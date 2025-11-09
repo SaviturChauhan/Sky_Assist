@@ -1,0 +1,12 @@
+node_modules
+.git
+.DS_Store
+*.log
+.env
+.env.local
+frontend/
+api/
+*.md
+!README.md
+test-db.js
+
