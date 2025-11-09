@@ -59,11 +59,16 @@ export const RequestProvider = ({ children }) => {
   }, [requests]);
 
   // Fetch requests from backend on mount
+  // Add small delay to stagger initial fetches (requests load first, then announcements)
   useEffect(() => {
     const fetchRequests = async () => {
       try {
         setLoading(true);
         setError(null);
+        
+        // Small delay to prevent simultaneous requests with announcements
+        await new Promise(resolve => setTimeout(resolve, 200));
+        
         const response = await requestAPI.getAll();
         
         if (response.success && response.data) {
@@ -105,11 +110,13 @@ export const RequestProvider = ({ children }) => {
         }
       } catch (err) {
         console.error("Error fetching requests:", err);
-        setError(err.message);
         // Don't clear existing requests on error - keep cached data
         // Only show error if we have no cached data
         if (requests.length === 0) {
           setError(err.message);
+        } else {
+          // If we have cached data, just log the error but don't show it
+          console.warn("Failed to fetch requests from backend, using cached data");
         }
       } finally {
         setLoading(false);
@@ -346,9 +353,10 @@ export const RequestProvider = ({ children }) => {
       }
     } catch (err) {
       console.error("Error refreshing requests:", err);
-      // Only set error if we don't have cached data
-      if (requests.length === 0) {
-        setError(err.message);
+      // Don't set error on refresh failures - just keep showing cached data
+      // Only log for debugging
+      if (err.message.includes("Too many requests")) {
+        console.warn("Rate limited during refresh. Will retry on next interval.");
       }
       // Don't clear existing requests on error - keep showing cached data
     } finally {

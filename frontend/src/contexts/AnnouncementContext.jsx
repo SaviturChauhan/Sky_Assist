@@ -91,11 +91,16 @@ export const AnnouncementProvider = ({ children }) => {
   }, [announcements]);
 
   // Fetch announcements from backend on mount
+  // Add delay to stagger after requests fetch (prevents simultaneous rate limit hits)
   useEffect(() => {
     const fetchAnnouncements = async () => {
       try {
         setLoading(true);
         setError(null);
+        
+        // Delay to stagger after requests fetch (requests load first)
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
         const response = await announcementAPI.getAll();
         
         if (response.success && response.data) {
@@ -122,6 +127,9 @@ export const AnnouncementProvider = ({ children }) => {
         // Only set error if we don't have cached data
         if (announcements.length === 0) {
           setError(err.message);
+        } else {
+          // If we have cached data, just log the error but don't show it
+          console.warn("Failed to fetch announcements from backend, using cached data");
         }
         // Don't clear existing announcements on error - keep cached data
       } finally {

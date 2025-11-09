@@ -26,8 +26,45 @@ export const clearAuth = () => {
   localStorage.removeItem("user");
 };
 
-// Make authenticated API request
-const apiRequest = async (endpoint, options = {}) => {
+// Request queue to prevent simultaneous requests
+let requestQueue = [];
+let isProcessingQueue = false;
+
+// Process request queue with delays
+const processQueue = async () => {
+  if (isProcessingQueue || requestQueue.length === 0) return;
+  
+  isProcessingQueue = true;
+  
+  while (requestQueue.length > 0) {
+    const { endpoint, options, resolve, reject } = requestQueue.shift();
+    
+    try {
+      const result = await makeRequest(endpoint, options);
+      resolve(result);
+    } catch (error) {
+      reject(error);
+    }
+    
+    // Small delay between requests to prevent rate limiting
+    if (requestQueue.length > 0) {
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+  }
+  
+  isProcessingQueue = false;
+};
+
+// Queue a request
+const queueRequest = (endpoint, options) => {
+  return new Promise((resolve, reject) => {
+    requestQueue.push({ endpoint, options, resolve, reject });
+    processQueue();
+  });
+};
+
+// Make authenticated API request with retry logic for rate limits
+const makeRequest = async (endpoint, options = {}, retryCount = 0) => {
   const token = getToken();
   
   const headers = {
@@ -52,6 +89,20 @@ const apiRequest = async (endpoint, options = {}) => {
       throw new Error(`Server error: ${response.status} ${response.statusText}`);
     }
 
+    // Handle rate limiting with exponential backoff
+    if (response.status === 429) {
+      const maxRetries = 3;
+      if (retryCount < maxRetries) {
+        const delay = Math.pow(2, retryCount) * 1000; // Exponential backoff: 1s, 2s, 4s
+        console.warn(`Rate limited. Retrying in ${delay}ms... (attempt ${retryCount + 1}/${maxRetries})`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        return makeRequest(endpoint, options, retryCount + 1);
+      } else {
+        console.error("Rate limit exceeded after retries");
+        throw new Error("Too many requests from this IP, please try again later.");
+      }
+    }
+
     if (!response.ok) {
       // Log detailed error for debugging
       console.error("API Error:", {
@@ -71,6 +122,19 @@ const apiRequest = async (endpoint, options = {}) => {
       error: error.message,
     });
     throw error;
+  }
+};
+
+// Make authenticated API request (public interface)
+const apiRequest = async (endpoint, options = {}) => {
+  // For GET requests, queue them to prevent simultaneous calls
+  // POST/PUT/DELETE requests go through immediately (they're excluded from rate limiting)
+  const method = (options.method || 'GET').toUpperCase();
+  
+  if (method === 'GET') {
+    return queueRequest(endpoint, options);
+  } else {
+    return makeRequest(endpoint, options);
   }
 };
 

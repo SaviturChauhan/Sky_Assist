@@ -57,13 +57,18 @@ const limiter = process.env.NODE_ENV === "development"
   ? (req, res, next) => next() // Skip rate limiting in development
   : rateLimit({
   windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000, // 15 minutes
-  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 5000, // Increased to 5000 requests per windowMs for GET requests
+  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 10000, // Increased to 10000 requests per windowMs for GET requests
   message: {
     success: false,
     message: "Too many requests from this IP, please try again later.",
   },
   standardHeaders: true,
   legacyHeaders: false,
+  // Use a more sophisticated key generator to track by IP and user
+  keyGenerator: (req) => {
+    // Use IP address as key, but could also use user ID if authenticated
+    return req.ip || req.connection.remoteAddress || 'unknown';
+  },
   skip: (req) => {
     // Skip rate limiting for:
     // 1. Auth routes (they have their own limiter)
@@ -94,6 +99,16 @@ const limiter = process.env.NODE_ENV === "development"
     return false;
   },
   skipSuccessfulRequests: false, // Count all requests
+  // Add handler for rate limit exceeded
+  handler: (req, res) => {
+    const windowMs = parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000;
+    console.warn(`Rate limit exceeded for IP: ${req.ip}, Path: ${req.path}`);
+    res.status(429).json({
+      success: false,
+      message: "Too many requests from this IP, please try again later.",
+      retryAfter: Math.ceil(windowMs / 1000), // Return retry after in seconds
+    });
+  },
 });
 
 // Body parsing middleware (needed before rate limiter to access headers)
