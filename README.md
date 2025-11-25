@@ -25,6 +25,8 @@ A comprehensive full-stack platform for managing in-flight passenger assistance 
 
 SkyAssist is an in-flight assistance platform that enables:
 
+
+- **Link to Deployed Site** https://skyassist-frontend.onrender.com
 - **Passengers** to submit service requests, medical assistance requests, and provide flight feedback
 - **Crew Members** to manage passenger requests, create flight announcements, and view analytics
 - **Real-time Communication** between passengers and crew members
