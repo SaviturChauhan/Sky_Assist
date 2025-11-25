@@ -31,8 +31,8 @@ export const RequestProvider = ({ children }) => {
       const saved = localStorage.getItem('skyassist_requests');
       if (saved) {
         const parsed = JSON.parse(saved);
-        // Only use cached data if it's less than 5 minutes old
-        if (parsed.timestamp && (Date.now() - parsed.timestamp < 5 * 60 * 1000)) {
+        // Only use cached data if it's less than 10 minutes old (increased from 5)
+        if (parsed.timestamp && (Date.now() - parsed.timestamp < 10 * 60 * 1000)) {
           return parsed.data || [];
         }
       }
@@ -211,8 +211,8 @@ export const RequestProvider = ({ children }) => {
         });
         setNextId((prev) => prev + 1);
         
-        // Refresh requests to get latest from backend
-        setTimeout(() => refreshRequests(), 1000);
+        // Don't immediately refresh - optimistic update already shows the new request
+        // The polling will pick up any updates on the next cycle
         
         return savedRequest;
       }
@@ -240,8 +240,8 @@ export const RequestProvider = ({ children }) => {
         )
       );
 
-      // Refresh requests to get updated data from backend
-      await refreshRequests();
+      // Don't immediately refresh - optimistic update already shows the status change
+      // The polling will pick up any updates on the next cycle
     } catch (error) {
       console.error("Error updating request status:", error);
       // Fallback: update local state only if backend save fails
@@ -287,8 +287,8 @@ export const RequestProvider = ({ children }) => {
       const response = await requestAPI.addMessage(requestId, message);
       console.log("Chat message saved:", response);
       
-      // Refresh requests to get updated data from backend (with a small delay)
-      setTimeout(() => refreshRequests(), 500);
+      // Don't immediately refresh - optimistic update already shows the message
+      // The polling will pick up any updates on the next cycle
       
       return response;
     } catch (error) {

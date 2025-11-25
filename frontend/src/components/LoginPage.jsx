@@ -156,12 +156,8 @@ const LoginForm = ({ userType, onLogin, onBack }) => {
     } catch (error) {
       console.error("Registration error:", error);
       // Handle network errors
-      const errorMessage = error.message || error.toString();
-      if (errorMessage.includes("Failed to fetch") || 
-          errorMessage.includes("NetworkError") || 
-          errorMessage.includes("ERR_CONNECTION_REFUSED") ||
-          error.name === "TypeError") {
-        throw new Error("Cannot connect to server. Please ensure the backend server is running on port 5001.");
+      if (error.message.includes("Failed to fetch") || error.message.includes("NetworkError")) {
+        throw new Error("Cannot connect to server. Please ensure the backend server is running.");
       }
       throw error;
     }
@@ -197,12 +193,8 @@ const LoginForm = ({ userType, onLogin, onBack }) => {
     } catch (error) {
       console.error("Login error:", error);
       // Handle network errors
-      const errorMessage = error.message || error.toString();
-      if (errorMessage.includes("Failed to fetch") || 
-          errorMessage.includes("NetworkError") || 
-          errorMessage.includes("ERR_CONNECTION_REFUSED") ||
-          error.name === "TypeError") {
-        throw new Error("Cannot connect to server. Please ensure the backend server is running on port 5001.");
+      if (error.message.includes("Failed to fetch") || error.message.includes("NetworkError")) {
+        throw new Error("Cannot connect to server. Please ensure the backend server is running.");
       }
       throw error;
     }
@@ -239,11 +231,6 @@ const LoginForm = ({ userType, onLogin, onBack }) => {
 
         const result = await registerUser(userData);
         if (result.success) {
-          // Store token and user data
-          if (result.data.token) {
-            localStorage.setItem("authToken", result.data.token);
-            localStorage.setItem("user", JSON.stringify(result.data.user));
-          }
           onLogin(userType, result.data.user);
         }
       } else {
@@ -267,22 +254,17 @@ const LoginForm = ({ userType, onLogin, onBack }) => {
 
           // Try API login if email and password provided
           if (formData.email && formData.password) {
-          try {
-            const loginData = {
-              email: formData.email,
-              password: formData.password,
-            };
-            const result = await loginUser(loginData);
-            if (result.success) {
-              // Store token and user data
-              if (result.data.token) {
-                localStorage.setItem("authToken", result.data.token);
-                localStorage.setItem("user", JSON.stringify(result.data.user));
+            try {
+              const loginData = {
+                email: formData.email,
+                password: formData.password,
+              };
+              const result = await loginUser(loginData);
+              if (result.success) {
+                onLogin("passenger", result.data.user);
+                return;
               }
-              onLogin("passenger", result.data.user);
-              return;
-            }
-          } catch (apiError) {
+            } catch (apiError) {
               setLoginError(apiError.message || "Login failed. Please check your credentials.");
               return;
             }
@@ -315,16 +297,11 @@ const LoginForm = ({ userType, onLogin, onBack }) => {
                 email: formData.email,
                 password: formData.password,
               };
-            const result = await loginUser(loginData);
-            if (result.success) {
-              // Store token and user data
-              if (result.data.token) {
-                localStorage.setItem("authToken", result.data.token);
-                localStorage.setItem("user", JSON.stringify(result.data.user));
+              const result = await loginUser(loginData);
+              if (result.success) {
+                onLogin("crew", result.data.user);
+                return;
               }
-              onLogin("crew", result.data.user);
-              return;
-            }
             } catch (apiError) {
               setLoginError(apiError.message || "Login failed. Please check your credentials.");
               return;

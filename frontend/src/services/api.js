@@ -29,6 +29,8 @@ export const clearAuth = () => {
 // Request queue to prevent simultaneous requests
 let requestQueue = [];
 let isProcessingQueue = false;
+// Track in-flight requests to prevent duplicates
+const inFlightRequests = new Map();
 
 // Process request queue with delays
 const processQueue = async () => {
@@ -37,10 +39,38 @@ const processQueue = async () => {
   isProcessingQueue = true;
   
   while (requestQueue.length > 0) {
-    const { endpoint, options, resolve, reject } = requestQueue.shift();
+    const { endpoint, options, resolve, reject, requestKey } = requestQueue.shift();
+    
+    // Create a unique key for this request
+    const key = requestKey || `${options.method || 'GET'}:${endpoint}`;
+    
+    // Check if this exact request is already in flight
+    if (inFlightRequests.has(key)) {
+      // If request is in flight, wait for it and share the result
+      try {
+        const existingResult = await inFlightRequests.get(key);
+        resolve(existingResult);
+      } catch (error) {
+        reject(error);
+      }
+      continue;
+    }
+    
+    // Mark request as in flight
+    const requestPromise = makeRequest(endpoint, options)
+      .then(result => {
+        inFlightRequests.delete(key);
+        return result;
+      })
+      .catch(error => {
+        inFlightRequests.delete(key);
+        throw error;
+      });
+    
+    inFlightRequests.set(key, requestPromise);
     
     try {
-      const result = await makeRequest(endpoint, options);
+      const result = await requestPromise;
       resolve(result);
     } catch (error) {
       reject(error);
@@ -48,17 +78,26 @@ const processQueue = async () => {
     
     // Small delay between requests to prevent rate limiting
     if (requestQueue.length > 0) {
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise(resolve => setTimeout(resolve, 200));
     }
   }
   
   isProcessingQueue = false;
 };
 
-// Queue a request
+// Queue a request with deduplication
 const queueRequest = (endpoint, options) => {
+  const method = (options.method || 'GET').toUpperCase();
+  const requestKey = `${method}:${endpoint}`;
+  
+  // Check if this exact request is already in flight
+  if (inFlightRequests.has(requestKey)) {
+    // Return the existing promise - this prevents duplicate simultaneous requests
+    return inFlightRequests.get(requestKey);
+  }
+  
   return new Promise((resolve, reject) => {
-    requestQueue.push({ endpoint, options, resolve, reject });
+    requestQueue.push({ endpoint, options, resolve, reject, requestKey });
     processQueue();
   });
 };
@@ -91,14 +130,16 @@ const makeRequest = async (endpoint, options = {}, retryCount = 0) => {
 
     // Handle rate limiting with exponential backoff
     if (response.status === 429) {
-      const maxRetries = 3;
+      const maxRetries = 2; // Reduced from 3 to prevent excessive retries
       if (retryCount < maxRetries) {
-        const delay = Math.pow(2, retryCount) * 1000; // Exponential backoff: 1s, 2s, 4s
-        console.warn(`Rate limited. Retrying in ${delay}ms... (attempt ${retryCount + 1}/${maxRetries})`);
-        await new Promise(resolve => setTimeout(resolve, delay));
+        // Use retry-after header if available, otherwise use exponential backoff
+        const retryAfter = data?.retryAfter ? data.retryAfter * 1000 : Math.pow(2, retryCount) * 2000; // 2s, 4s
+        console.warn(`Rate limited. Retrying in ${retryAfter}ms... (attempt ${retryCount + 1}/${maxRetries})`);
+        await new Promise(resolve => setTimeout(resolve, retryAfter));
         return makeRequest(endpoint, options, retryCount + 1);
       } else {
         console.error("Rate limit exceeded after retries");
+        // Don't throw error for polling requests - let them fail silently and retry later
         throw new Error("Too many requests from this IP, please try again later.");
       }
     }

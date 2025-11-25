@@ -19,9 +19,10 @@ const PassengerRequests = ({ user }) => {
     // Refresh immediately on mount
     refreshRequests();
     
-    // Refresh every 60 seconds to catch status updates (increased to reduce API calls)
+    // Refresh every 2 minutes (120 seconds) to reduce API calls and prevent rate limiting
     // Only refresh if page is visible to user
     let intervalId = null;
+    let pollInterval = 120000; // 2 minutes
     
     const startPolling = () => {
       if (intervalId) clearInterval(intervalId);
@@ -29,9 +30,17 @@ const PassengerRequests = ({ user }) => {
       intervalId = setInterval(() => {
         // Check if page is visible before refreshing
         if (!document.hidden) {
-          refreshRequests();
+          refreshRequests().catch(err => {
+            // If rate limited, increase polling interval
+            if (err.message && err.message.includes("Too many requests")) {
+              pollInterval = Math.min(pollInterval * 1.5, 300000); // Max 5 minutes
+              console.warn(`Rate limited, increasing poll interval to ${pollInterval}ms`);
+              if (intervalId) clearInterval(intervalId);
+              startPolling();
+            }
+          });
         }
-      }, 60000); // Refresh every 60 seconds (reduced from 30 seconds)
+      }, pollInterval);
     };
     
     // Start polling
@@ -76,11 +85,8 @@ const PassengerRequests = ({ user }) => {
       // Clear message input immediately for better UX
       setNewMessage("");
       
-      // Refresh requests to get updated data including the new message
-      // Use a small delay to ensure backend has processed the message
-      setTimeout(() => {
-        refreshRequests();
-      }, 500);
+      // Don't immediately refresh - optimistic update already shows the message
+      // The polling will pick up the update on the next cycle
     } catch (error) {
       console.error("Error sending message:", error);
       console.error("Request ID:", requestId);

@@ -65,8 +65,8 @@ export const AnnouncementProvider = ({ children }) => {
       const saved = localStorage.getItem('skyassist_announcements');
       if (saved) {
         const parsed = JSON.parse(saved);
-        // Only use cached data if it's less than 5 minutes old
-        if (parsed.timestamp && (Date.now() - parsed.timestamp < 5 * 60 * 1000)) {
+        // Only use cached data if it's less than 10 minutes old (increased from 5)
+        if (parsed.timestamp && (Date.now() - parsed.timestamp < 10 * 60 * 1000)) {
           return parsed.data || [];
         }
       }
